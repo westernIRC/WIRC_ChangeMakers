@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  member
+  vp_admin
+  overall_admin
+}
+
+enum RankingMethod {
+  participation_rate
+  streak_length
+  blended
+}
+
+model User {
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  passwordHash    String
+  year            String?
+  program         String?
+  cause           String?
+  fundraisingLink String?
+  isAnonymous     Boolean  @default(false)
+  role            Role     @default(member)
+
+  houseId String?
+  house   House?  @relation(fields: [houseId], references: [id])
+
+  weeklyEntries WeeklyEntry[]
+  editsMade     EntryEditLog[] @relation("EditedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model House {
+  id            String   @id @default(uuid())
+  name          String
+  portfolioName String
+  members       User[]
+  createdAt     DateTime @default(now())
+}
+
+model WeeklyEntry {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  weekStartDate DateTime
+  amount        Decimal  @db.Decimal(10, 2)
+  hitMinimum    Boolean
+  submittedAt   DateTime @default(now())
+
+  editLogs EntryEditLog[]
+
+  @@unique([userId, weekStartDate])
+}
+
+model EntryEditLog {
+  id              String      @id @default(uuid())
+  weeklyEntryId   String
+  weeklyEntry     WeeklyEntry @relation(fields: [weeklyEntryId], references: [id])
+  editedByUserId  String
+  editedBy        User        @relation("EditedBy", fields: [editedByUserId], references: [id])
+  previousAmount  Decimal     @db.Decimal(10, 2)
+  newAmount       Decimal     @db.Decimal(10, 2)
+  editedAt        DateTime    @default(now())
+}
+
+model Settings {
+  id             Int           @id @default(1)
+  weeklyMinimum  Decimal       @default(10.00) @db.Decimal(10, 2)
+  rankingMethod  RankingMethod @default(blended)
+  blendedWeights Json          @default("{\"participation\": 0.6, \"streak\": 0.4}")
+}
