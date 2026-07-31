@@ -6,12 +6,14 @@ const prisma = require("../prismaClient");
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { getWeekStart } = require("../utils/weeks");
 const { getCurrentStreak } = require("../services/streakService");
+const { getSettings } = require("../services/settingsService");
+const { amountSchema } = require("../utils/money");
 const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
 const createEntrySchema = z.object({
-  amount: z.number().positive(),
+  amount: amountSchema,
 });
 
 router.post(
@@ -23,7 +25,7 @@ router.post(
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettings();
     const weekStartDate = getWeekStart(new Date());
     const hitMinimum = parsed.data.amount >= Number(settings.weeklyMinimum);
 

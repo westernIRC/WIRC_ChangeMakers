@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
+import { isCurrentWeek, formatWeekStart } from "../utils/weeks";
 
 export default function DashboardPage() {
   const { user, refresh } = useAuth();
@@ -13,6 +14,7 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [house, setHouse] = useState(null);
+  const [houseUnavailable, setHouseUnavailable] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(user?.isAnonymous ?? false);
   const [privacyMessage, setPrivacyMessage] = useState("");
   const [savingPrivacy, setSavingPrivacy] = useState(false);
@@ -23,6 +25,8 @@ export default function DashboardPage() {
       const data = await api.get("/entries/me");
       setEntries(data.entries);
       setStreak(data.streak);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -34,7 +38,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.houseId) {
-      api.get(`/houses/${user.houseId}`).then((data) => setHouse(data.house));
+      // Non-critical: a failure here shouldn't take down the rest of the dashboard, but it
+      // shouldn't leave a permanent "Loading..." either.
+      api
+        .get(`/houses/${user.houseId}`)
+        .then((data) => setHouse(data.house))
+        .catch(() => setHouseUnavailable(true));
     }
   }, [user?.houseId]);
 
@@ -87,6 +96,8 @@ export default function DashboardPage() {
           <Link to={`/houses/${house.id}`} className="font-medium text-brand-600 hover:underline">
             {house.name}
           </Link>
+        ) : houseUnavailable ? (
+          "Unavailable right now"
         ) : (
           "Loading..."
         )}
@@ -105,6 +116,7 @@ export default function DashboardPage() {
               <input
                 type="number"
                 min="0.01"
+                max="1000000"
                 step="0.01"
                 required
                 value={amount}
@@ -166,7 +178,7 @@ export default function DashboardPage() {
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id} className="border-b last:border-0">
-                  <td className="py-1">{new Date(entry.weekStartDate).toLocaleDateString()}</td>
+                  <td className="py-1">{formatWeekStart(entry.weekStartDate)}</td>
                   <td className="py-1">${Number(entry.amount).toFixed(2)}</td>
                   <td className="py-1">{entry.hitMinimum ? "Yes" : "No"}</td>
                 </tr>
@@ -177,13 +189,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
-
-function isCurrentWeek(date) {
-  const now = new Date();
-  const day = now.getUTCDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  monday.setUTCDate(monday.getUTCDate() + diffToMonday);
-  return date.getTime() === monday.getTime();
 }

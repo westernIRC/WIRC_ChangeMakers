@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const PERIODS = [
   { value: "week", label: "This week" },
@@ -48,12 +49,15 @@ function HouseLeaderboard() {
   const [period, setPeriod] = useState("all");
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setLoading(true);
+    setError("");
     api
       .get(`/leaderboard?period=${period}`)
       .then((data) => setLeaderboard(data.leaderboard))
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [period]);
 
@@ -77,7 +81,9 @@ function HouseLeaderboard() {
         ))}
       </div>
 
-      {loading ? (
+      {error ? (
+        <p className="mt-6 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      ) : loading ? (
         <p className="mt-6 text-sm text-gray-500">Loading...</p>
       ) : (
         <table className="mt-6 w-full overflow-hidden rounded border border-gray-200 bg-white text-sm">
@@ -112,16 +118,35 @@ function HouseLeaderboard() {
 }
 
 function IndividualLeaderboard() {
+  const { user, loading: authLoading } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    if (authLoading || !user) return;
     setLoading(true);
+    setError("");
     api
       .get("/leaderboard/individuals")
       .then((data) => setLeaderboard(data.leaderboard))
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [authLoading, user]);
+
+  // The House view above is public; this one names people, so it needs a session. Prompt
+  // rather than firing a request we know will 401.
+  if (!authLoading && !user) {
+    return (
+      <p className="mt-6 rounded border border-gray-200 bg-white p-4 text-sm text-gray-600">
+        Individual rankings are visible to members only.{" "}
+        <Link to="/login" className="text-brand-600 hover:underline">
+          Log in
+        </Link>{" "}
+        to see them.
+      </p>
+    );
+  }
 
   return (
     <div>

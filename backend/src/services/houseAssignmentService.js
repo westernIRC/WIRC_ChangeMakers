@@ -1,5 +1,14 @@
 const prisma = require("../prismaClient");
 
+// Distinguishes "the database has no Houses yet" (an expected state on a freshly migrated
+// deploy, and the caller's problem to report) from a genuine failure.
+class NoHousesError extends Error {
+  constructor() {
+    super("No Houses exist to assign a new member to");
+    this.name = "NoHousesError";
+  }
+}
+
 // Assigns a new member to the House with the fewest current members (ties broken randomly)
 // to keep House sizes balanced without making assignment purely random.
 async function assignHouseForNewMember() {
@@ -7,7 +16,7 @@ async function assignHouseForNewMember() {
     include: { _count: { select: { members: true } } },
   });
   if (houses.length === 0) {
-    throw new Error("No Houses exist to assign a new member to");
+    throw new NoHousesError();
   }
 
   const minCount = Math.min(...houses.map((h) => h._count.members));
@@ -16,4 +25,4 @@ async function assignHouseForNewMember() {
   return chosen.id;
 }
 
-module.exports = { assignHouseForNewMember };
+module.exports = { assignHouseForNewMember, NoHousesError };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
+import { formatWeekStart } from "../utils/weeks";
 
 const TABS_VP = [
   { key: "members", label: "Members" },
@@ -63,10 +64,13 @@ function MembersPanel({ user, isOverall }) {
 
   useEffect(() => {
     if (isOverall) {
-      api.get("/houses").then((data) => {
-        setHouses(data.houses);
-        if (!houseId && data.houses.length > 0) setHouseId(data.houses[0].houseId);
-      });
+      api
+        .get("/houses")
+        .then((data) => {
+          setHouses(data.houses);
+          if (!houseId && data.houses.length > 0) setHouseId(data.houses[0].houseId);
+        })
+        .catch((err) => setError(err.message));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -204,7 +208,7 @@ function MembersPanel({ user, isOverall }) {
                 <tbody>
                   {m.weeklyEntries.map((entry) => (
                     <tr key={entry.id} className="border-t">
-                      <td className="py-1">{new Date(entry.weekStartDate).toLocaleDateString()}</td>
+                      <td className="py-1">{formatWeekStart(entry.weekStartDate)}</td>
                       <td className="py-1">
                         {editing?.entryId === entry.id ? (
                           <input
@@ -254,10 +258,18 @@ function MembersPanel({ user, isOverall }) {
 
 function AuditLogPanel() {
   const [logs, setLogs] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get("/admin/audit-log").then((data) => setLogs(data.logs));
+    api
+      .get("/admin/audit-log")
+      .then((data) => setLogs(data.logs))
+      .catch((err) => setError(err.message));
   }, []);
+
+  if (error) {
+    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>;
+  }
 
   return (
     <table className="w-full overflow-hidden rounded border border-gray-200 bg-white text-sm">
@@ -276,7 +288,7 @@ function AuditLogPanel() {
           <tr key={log.id} className="border-t">
             <td className="px-3 py-2">{log.weeklyEntry.user.name}</td>
             <td className="px-3 py-2">
-              {new Date(log.weeklyEntry.weekStartDate).toLocaleDateString()}
+              {formatWeekStart(log.weeklyEntry.weekStartDate)}
             </td>
             <td className="px-3 py-2">${Number(log.previousAmount).toFixed(2)}</td>
             <td className="px-3 py-2">${Number(log.newAmount).toFixed(2)}</td>
@@ -302,8 +314,12 @@ function HousesPanel() {
   const [error, setError] = useState("");
 
   async function load() {
-    const data = await api.get("/houses");
-    setHouses(data.houses);
+    try {
+      const data = await api.get("/houses");
+      setHouses(data.houses);
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   useEffect(() => {
@@ -378,13 +394,22 @@ function HousesPanel() {
   );
 }
 
+// Keeps derived weights free of float artefacts like 0.30000000000000004.
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
 function SettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState("");
 
   async function load() {
-    const data = await api.get("/admin/settings");
-    setSettings(data.settings);
+    try {
+      const data = await api.get("/admin/settings");
+      setSettings(data.settings);
+    } catch (err) {
+      setMessage(err.message);
+    }
   }
 
   useEffect(() => {
@@ -415,6 +440,8 @@ function SettingsPanel() {
         <input
           type="number"
           step="0.01"
+          min="0.01"
+          max="1000000"
           value={settings.weeklyMinimum}
           onChange={(e) => setSettings((s) => ({ ...s, weeklyMinimum: e.target.value }))}
           className="w-full rounded border border-gray-300 px-3 py-2"
@@ -433,41 +460,46 @@ function SettingsPanel() {
         </select>
       </label>
       {settings.rankingMethod === "blended" && (
-        <div className="flex gap-3">
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-gray-700">Participation weight</span>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="1"
-              value={settings.blendedWeights.participation}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  blendedWeights: { ...s.blendedWeights, participation: Number(e.target.value) },
-                }))
-              }
-              className="w-24 rounded border border-gray-300 px-3 py-2"
-            />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-gray-700">Streak weight</span>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="1"
-              value={settings.blendedWeights.streak}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  blendedWeights: { ...s.blendedWeights, streak: Number(e.target.value) },
-                }))
-              }
-              className="w-24 rounded border border-gray-300 px-3 py-2"
-            />
-          </label>
+        <div>
+          <div className="flex gap-3">
+            <label className="text-sm">
+              <span className="mb-1 block font-medium text-gray-700">Participation weight</span>
+              <input
+                type="number"
+                step="0.05"
+                min="0"
+                max="1"
+                value={settings.blendedWeights.participation}
+                onChange={(e) => {
+                  // The two weights have to add up to 1 or scores stop being on a 0-1 scale,
+                  // so streak is derived rather than entered separately - there's no way to
+                  // type a pair that the server will reject.
+                  const participation = Math.min(1, Math.max(0, Number(e.target.value) || 0));
+                  setSettings((s) => ({
+                    ...s,
+                    blendedWeights: {
+                      participation: round2(participation),
+                      streak: round2(1 - participation),
+                    },
+                  }));
+                }}
+                className="w-24 rounded border border-gray-300 px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block font-medium text-gray-700">Streak weight</span>
+              <input
+                type="number"
+                value={settings.blendedWeights.streak}
+                readOnly
+                disabled
+                className="w-24 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
+              />
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            Streak weight is whatever's left over - the two always add up to 1.
+          </p>
         </div>
       )}
       <button
