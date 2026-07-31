@@ -36,9 +36,24 @@ model User {
 
   weeklyEntries WeeklyEntry[]
   editsMade     EntryEditLog[] @relation("EditedBy")
+  resetTokens   PasswordResetToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Only the SHA-256 hash of the reset token is stored, never the token itself, so a database
+// leak can't be replayed into account takeovers. Tokens are single-use (usedAt) and expire.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model House {

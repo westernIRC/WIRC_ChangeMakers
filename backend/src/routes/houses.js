@@ -11,13 +11,15 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
 
+// Public: House-level aggregates, no member data.
 router.get("/", asyncHandler(async (req, res) => {
   const period = normalizePeriod(req.query.period);
   const leaderboard = await getLeaderboard(period);
   res.json({ houses: leaderboard, period });
 }));
 
-router.get("/:id", asyncHandler(async (req, res) => {
+// Members only: the response embeds the House's full member roster.
+router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
   const house = await prisma.house.findUnique({
     where: { id: req.params.id },
     include: { members: { where: { role: "member" } } },
@@ -97,6 +99,11 @@ router.delete(
   authMiddleware,
   requireRole("overall_admin"),
   asyncHandler(async (req, res) => {
+    // Check existence explicitly: a nonexistent House also has zero members, so without this
+    // the delete below would throw P2025 and surface as a 500 instead of a 404.
+    const house = await prisma.house.findUnique({ where: { id: req.params.id } });
+    if (!house) return res.status(404).json({ error: "House not found" });
+
     const memberCount = await prisma.user.count({ where: { houseId: req.params.id } });
     if (memberCount > 0) {
       return res.status(409).json({

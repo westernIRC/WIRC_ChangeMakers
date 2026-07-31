@@ -31,9 +31,12 @@ router.patch(
   })
 );
 
-// Public profile - never exposes dollar amounts or email.
+// Member-visible profile - never exposes dollar amounts or email, and honours the
+// subject's anonymity setting. Requires a session: these are students' names, programs
+// and fundraising pages, not public directory data.
 router.get(
   "/:id",
+  authMiddleware,
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) return res.status(404).json({ error: "User not found" });

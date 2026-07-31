@@ -1,6 +1,7 @@
 const prisma = require("../prismaClient");
 const { getPeriodStart } = require("../utils/weeks");
 const { getStreaksForUsers } = require("./streakService");
+const { getSettings } = require("./settingsService");
 
 const VALID_PERIODS = ["week", "month", "rolling3mo", "all"];
 
@@ -20,44 +21,9 @@ async function getHouseTotal(houseId, period) {
   return Number(result._sum.amount || 0);
 }
 
-async function getParticipationRate(houseId, period) {
-  const periodStart = getPeriodStart(normalizePeriod(period));
-  const members = await prisma.user.findMany({
-    where: { houseId, role: "member" },
-    select: { id: true },
-  });
-  if (members.length === 0) return 0;
-
-  const memberIds = members.map((m) => m.id);
-  const entries = await prisma.weeklyEntry.findMany({
-    where: {
-      userId: { in: memberIds },
-      hitMinimum: true,
-      ...(periodStart ? { weekStartDate: { gte: periodStart } } : {}),
-    },
-    select: { userId: true },
-  });
-
-  const hittingIds = new Set(entries.map((e) => e.userId));
-  return hittingIds.size / members.length;
-}
-
-async function getAvgStreak(houseId) {
-  const members = await prisma.user.findMany({
-    where: { houseId, role: "member" },
-    select: { id: true },
-  });
-  if (members.length === 0) return 0;
-
-  const streaks = await getStreaksForUsers(members.map((m) => m.id));
-  const values = Object.values(streaks);
-  return values.reduce((sum, s) => sum + s, 0) / values.length;
-}
-
-async function getHouseScore(houseId, period, settings) {
-  const participationRate = await getParticipationRate(houseId, period);
-  const avgStreak = await getAvgStreak(houseId);
-
+// Pure scoring - takes already-computed inputs. Previously this refetched participation and
+// streaks itself, which meant the leaderboard computed both twice for every House.
+function scoreHouse(participationRate, avgStreak, settings) {
   switch (settings.rankingMethod) {
     case "participation_rate":
       return participationRate;
@@ -97,29 +63,71 @@ async function getIndividualLeaderboard() {
   return rows.map((row, i) => ({ ...row, rank: i + 1 }));
 }
 
+// Builds the whole leaderboard from a fixed number of queries (settings, houses, users,
+// period entries, streak entries) and aggregates in memory. The previous implementation
+// issued a query per member per House per metric - 112 round trips for 26 members.
 async function getLeaderboard(period) {
-  const settings = await prisma.settings.findUnique({ where: { id: 1 } });
-  const houses = await prisma.house.findMany();
+  const periodStart = getPeriodStart(normalizePeriod(period));
+  const settings = await getSettings();
 
-  const rows = await Promise.all(
-    houses.map(async (house) => {
-      const [total, participationRate, avgStreak, score] = await Promise.all([
-        getHouseTotal(house.id, period),
-        getParticipationRate(house.id, period),
-        getAvgStreak(house.id),
-        getHouseScore(house.id, period, settings),
-      ]);
-      return {
-        houseId: house.id,
-        name: house.name,
-        portfolioName: house.portfolioName,
-        total,
-        participationRate,
-        avgStreak,
-        score,
-      };
-    })
-  );
+  const [houses, users] = await Promise.all([
+    prisma.house.findMany(),
+    prisma.user.findMany({ select: { id: true, houseId: true, role: true } }),
+  ]);
+
+  const periodEntries = await prisma.weeklyEntry.findMany({
+    where: periodStart ? { weekStartDate: { gte: periodStart } } : {},
+    select: { userId: true, amount: true, hitMinimum: true },
+  });
+
+  const memberIds = users.filter((u) => u.role === "member").map((u) => u.id);
+  const streaks = await getStreaksForUsers(memberIds);
+
+  const userById = new Map(users.map((u) => [u.id, u]));
+
+  // House totals count every user's entries (admins included), matching getHouseTotal.
+  // Participation is members-only, so it is accumulated separately.
+  const totalByHouse = new Map();
+  const hitMembersByHouse = new Map();
+  for (const entry of periodEntries) {
+    const user = userById.get(entry.userId);
+    if (!user?.houseId) continue;
+
+    totalByHouse.set(user.houseId, (totalByHouse.get(user.houseId) ?? 0) + Number(entry.amount));
+
+    if (entry.hitMinimum && user.role === "member") {
+      if (!hitMembersByHouse.has(user.houseId)) hitMembersByHouse.set(user.houseId, new Set());
+      hitMembersByHouse.get(user.houseId).add(entry.userId);
+    }
+  }
+
+  const membersByHouse = new Map();
+  for (const user of users) {
+    if (user.role !== "member" || !user.houseId) continue;
+    if (!membersByHouse.has(user.houseId)) membersByHouse.set(user.houseId, []);
+    membersByHouse.get(user.houseId).push(user.id);
+  }
+
+  const rows = houses.map((house) => {
+    const members = membersByHouse.get(house.id) ?? [];
+    const total = totalByHouse.get(house.id) ?? 0;
+    const participationRate = members.length
+      ? (hitMembersByHouse.get(house.id)?.size ?? 0) / members.length
+      : 0;
+    const avgStreak = members.length
+      ? members.reduce((sum, id) => sum + (streaks[id] ?? 0), 0) / members.length
+      : 0;
+
+    return {
+      houseId: house.id,
+      name: house.name,
+      portfolioName: house.portfolioName,
+      total,
+      participationRate,
+      avgStreak,
+      score: scoreHouse(participationRate, avgStreak, settings),
+    };
+  });
 
   rows.sort((a, b) => b.score - a.score);
   return rows.map((row, i) => ({ ...row, rank: i + 1 }));
@@ -127,9 +135,7 @@ async function getLeaderboard(period) {
 
 module.exports = {
   getHouseTotal,
-  getParticipationRate,
-  getAvgStreak,
-  getHouseScore,
+  scoreHouse,
   getLeaderboard,
   getIndividualLeaderboard,
   normalizePeriod,

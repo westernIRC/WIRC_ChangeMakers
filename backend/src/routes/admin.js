@@ -6,6 +6,8 @@ const { authMiddleware } = require("../middleware/authMiddleware");
 const { requireRole, requireHouseScope } = require("../middleware/roleMiddleware");
 const { getCurrentStreak, getStreaksForUsers } = require("../services/streakService");
 const { adminUser } = require("../utils/serialize");
+const { getSettings, SETTINGS_DEFAULTS } = require("../services/settingsService");
+const { amountSchema } = require("../utils/money");
 const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
@@ -16,6 +18,11 @@ router.get(
   "/houses/:id/members",
   requireHouseScope((req) => req.params.id),
   asyncHandler(async (req, res) => {
+    // A nonexistent House and an empty House both return no members; distinguish them so a
+    // bad id reads as 404 rather than "this House has nobody in it".
+    const house = await prisma.house.findUnique({ where: { id: req.params.id } });
+    if (!house) return res.status(404).json({ error: "House not found" });
+
     const members = await prisma.user.findMany({
       where: { houseId: req.params.id },
       include: { weeklyEntries: { orderBy: { weekStartDate: "desc" } } },
@@ -31,7 +38,7 @@ router.get(
 );
 
 const editEntrySchema = z.object({
-  amount: z.number().positive(),
+  amount: amountSchema,
 });
 
 router.patch(
@@ -52,7 +59,7 @@ router.patch(
     const entry = await prisma.weeklyEntry.findUnique({ where: { id: req.params.id } });
     if (!entry) return res.status(404).json({ error: "Entry not found" });
 
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettings();
     const newAmount = parsed.data.amount;
 
     const [updatedEntry] = await prisma.$transaction([
@@ -100,16 +107,27 @@ router.get(
   "/settings",
   requireRole("overall_admin"),
   asyncHandler(async (req, res) => {
-    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const settings = await getSettings();
     res.json({ settings });
   })
 );
 
 const settingsSchema = z.object({
-  weeklyMinimum: z.number().positive().optional(),
+  weeklyMinimum: amountSchema.optional(),
   rankingMethod: z.enum(["participation_rate", "streak_length", "blended"]).optional(),
+  // The blended score is participation*wp + normalizedStreak*ws. Weights that don't sum to 1
+  // still produce a ranking, but the resulting scores aren't on a 0-1 scale any more, so
+  // "0.71" stops meaning anything comparable across settings changes. Tolerate float noise
+  // (0.1 + 0.2 !== 0.3) but reject anything meaningfully off.
   blendedWeights: z
-    .object({ participation: z.number().min(0).max(1), streak: z.number().min(0).max(1) })
+    .object({
+      participation: z.number().min(0).max(1),
+      streak: z.number().min(0).max(1),
+    })
+    .refine(
+      (w) => Math.abs(w.participation + w.streak - 1) < 1e-6,
+      "Participation and streak weights must add up to 1"
+    )
     .optional(),
 });
 
@@ -121,7 +139,13 @@ router.put(
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
-    const settings = await prisma.settings.update({ where: { id: 1 }, data: parsed.data });
+    // Upsert rather than update: on a freshly migrated database the row may not exist yet,
+    // and `update` would throw P2025 straight into the 500 handler.
+    const settings = await prisma.settings.upsert({
+      where: { id: 1 },
+      update: parsed.data,
+      create: { ...SETTINGS_DEFAULTS, ...parsed.data },
+    });
     res.json({ settings });
   })
 );
@@ -136,8 +160,12 @@ router.patch(
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
-    const house = await prisma.house.findUnique({ where: { id: parsed.data.houseId } });
+    const [house, existing] = await Promise.all([
+      prisma.house.findUnique({ where: { id: parsed.data.houseId } }),
+      prisma.user.findUnique({ where: { id: req.params.id } }),
+    ]);
     if (!house) return res.status(404).json({ error: "Target House not found" });
+    if (!existing) return res.status(404).json({ error: "User not found" });
 
     const user = await prisma.user.update({
       where: { id: req.params.id },
