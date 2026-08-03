@@ -68,7 +68,7 @@ assertEmailConfigured();
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
-  console.log(`Change Makers API listening on port ${port}`);
+  console.log(`Changemakers API listening on port ${port}`);
   if (!isConfigured()) {
     console.log("SMTP not configured - password reset emails will be logged to this console.");
   }

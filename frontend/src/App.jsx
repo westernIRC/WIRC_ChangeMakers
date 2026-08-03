@@ -15,9 +15,10 @@ import NotFoundPage from "./pages/NotFoundPage.jsx";
 
 export default function App() {
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <NavBar />
-      <Routes>
+      <main className="flex-1">
+        <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -58,8 +59,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </main>
+
+      <footer className="border-t border-ink-200/70 bg-white/60">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-ink-500">
+          <p>Western Islamic Relief Canada · Changemakers</p>
+          <p>Dollar amounts are always private. Only streaks are public.</p>
+        </div>
+      </footer>
     </div>
   );
 }

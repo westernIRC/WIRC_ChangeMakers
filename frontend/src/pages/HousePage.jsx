@@ -2,11 +2,23 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
+import { houseTheme, houseGradient } from "../utils/houseTheme";
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  Field,
+  SkeletonRows,
+  Stat,
+  StreakBadge,
+} from "../components/ui.jsx";
 
 const PERIODS = [
   { value: "week", label: "This week" },
   { value: "month", label: "This month" },
-  { value: "rolling3mo", label: "Last 3 Months" },
+  { value: "rolling3mo", label: "Last 3 months" },
   { value: "all", label: "Campaign to date" },
 ];
 
@@ -18,6 +30,7 @@ export default function HousePage() {
   const [error, setError] = useState("");
   const [renameForm, setRenameForm] = useState({ name: "", portfolioName: "" });
   const [renameMessage, setRenameMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const canRename =
     user && (user.role === "overall_admin" || (user.role === "vp_admin" && user.houseId === houseId));
@@ -41,39 +54,90 @@ export default function HousePage() {
   async function handleRename(e) {
     e.preventDefault();
     setRenameMessage("");
+    setSaving(true);
     try {
       await api.patch(`/houses/${houseId}`, renameForm);
       setRenameMessage("House updated.");
       await load();
     } catch (err) {
       setRenameMessage(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
-  if (error) return <div className="mx-auto max-w-3xl px-4 py-10 text-red-700">{error}</div>;
-  if (!house) return <div className="mx-auto max-w-3xl px-4 py-10 text-gray-500">Loading...</div>;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <Alert tone="error">{error}</Alert>
+        <div className="mt-4">
+          <Button to="/leaderboard" variant="secondary">
+            Back to leaderboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!house) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <div className="skeleton h-36 rounded-2xl" />
+        <SkeletonRows rows={3} className="mt-4" />
+      </div>
+    );
+  }
+
+  const theme = houseTheme(house);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-bold">{house.name}</h1>
-      <p className="text-gray-600">{house.portfolioName} portfolio</p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => setPeriod(p.value)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              period === p.value ? "bg-brand-600 text-white" : "bg-gray-100 text-gray-700"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* ------------------------------------------------------------------ banner */}
+      <div
+        className="animate-fade-up overflow-hidden rounded-2xl p-6 shadow-lift sm:p-8"
+        style={{ backgroundImage: houseGradient(house) }}
+      >
+        <div className="flex items-start gap-4">
+          <span className="text-4xl drop-shadow-sm" aria-hidden="true">
+            {theme.emoji}
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              {house.name}
+            </h1>
+            <p className="mt-1 text-sm text-white/70">{house.portfolioName} portfolio</p>
+          </div>
+          <span className="ml-auto shrink-0 rounded-full bg-white/20 px-3 py-1.5 text-sm font-bold text-white backdrop-blur-sm">
+            #{house.rank}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <Stat label="Total raised" value={`$${house.total.toFixed(2)}`} />
+      {/* ---------------------------------------------------------------- controls */}
+      <div className="no-scrollbar -mx-1 mt-5 flex gap-1.5 overflow-x-auto px-1 py-1">
+        {PERIODS.map((p) => {
+          const active = p.value === period;
+          return (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => setPeriod(p.value)}
+              aria-pressed={active}
+              className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition"
+              style={
+                active
+                  ? { background: theme.accent, color: "#fff" }
+                  : { background: "#fff", color: "#4d5567", boxShadow: "inset 0 0 0 1px #e4e7ee" }
+              }
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-3">
+        <Stat label="Total raised" value={`$${house.total.toFixed(2)}`} accent={theme.accent} />
         <Stat label="Overall rank" value={`#${house.rank}`} />
         <Stat
           label="Participation"
@@ -81,61 +145,68 @@ export default function HousePage() {
         />
       </div>
 
-      {canRename && (
-        <div className="mt-6 rounded border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 font-semibold">Edit House details</h2>
-          <form onSubmit={handleRename} className="flex flex-wrap items-end gap-3">
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">House name</span>
-              <input
-                value={renameForm.name}
-                onChange={(e) => setRenameForm((f) => ({ ...f, name: e.target.value }))}
-                className="rounded border border-gray-300 px-3 py-2"
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Portfolio name</span>
-              <input
-                value={renameForm.portfolioName}
-                onChange={(e) => setRenameForm((f) => ({ ...f, portfolioName: e.target.value }))}
-                className="rounded border border-gray-300 px-3 py-2"
-              />
-            </label>
-            <button
-              type="submit"
-              className="rounded bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
-            >
-              Save
-            </button>
-          </form>
-          {renameMessage && <p className="mt-2 text-sm text-gray-600">{renameMessage}</p>}
+      {/* ----------------------------------------------------------------- members */}
+      <Card className="mt-4 p-5 sm:p-6">
+        <CardHeader
+          title="Members"
+          subtitle={`${house.members.length} member${house.members.length === 1 ? "" : "s"}`}
+        />
+        <div className="mt-4">
+          {house.members.length === 0 ? (
+            <EmptyState icon="👥" title="No members yet">
+              New signups are assigned to Houses automatically.
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-ink-200">
+              {house.members.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <Link
+                    to={`/profile/${m.id}`}
+                    className="flex min-w-0 items-center gap-3 font-medium text-ink-800 hover:text-brand-700"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                      style={{ backgroundImage: houseGradient(house) }}
+                    >
+                      {(m.name || "?").charAt(0).toUpperCase()}
+                    </span>
+                    <span className="truncate">{m.name}</span>
+                  </Link>
+                  <StreakBadge weeks={m.streak} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+      </Card>
+
+      {/* ------------------------------------------------------------------- admin */}
+      {canRename && (
+        <Card className="mt-4 p-5 sm:p-6">
+          <CardHeader title="Edit House details" subtitle="Visible to everyone immediately." />
+          <form onSubmit={handleRename} className="mt-4 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="House name"
+                value={renameForm.name}
+                onChange={(v) => setRenameForm((f) => ({ ...f, name: v }))}
+              />
+              <Field
+                label="Portfolio name"
+                value={renameForm.portfolioName}
+                onChange={(v) => setRenameForm((f) => ({ ...f, portfolioName: v }))}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="submit" variant="secondary" size="sm" loading={saving}>
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+              {renameMessage && <span className="text-sm text-ink-500">{renameMessage}</span>}
+            </div>
+          </form>
+        </Card>
       )}
-
-      <div className="mt-6 rounded border border-gray-200 bg-white p-4">
-        <h2 className="mb-3 font-semibold">Members</h2>
-        <ul className="divide-y">
-          {house.members.map((m) => (
-            <li key={m.id} className="flex items-center justify-between py-2">
-              <Link to={`/profile/${m.id}`} className="text-brand-600 hover:underline">
-                {m.name}
-              </Link>
-              <span className="text-sm text-gray-500">
-                🔥 {m.streak} week{m.streak === 1 ? "" : "s"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div className="rounded border border-gray-200 bg-white p-4 text-center">
-      <p className="text-xl font-bold">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { AuthLayout, Alert, Button, Field, TextLink } from "../components/ui.jsx";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -25,49 +26,47 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-10">
-      <h1 className="mb-6 text-2xl font-bold">Log in</h1>
-      {error && <p className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Log in to submit this week and keep your streak alive."
+      footer={
+        <>
+          Need an account? <TextLink to="/signup">Sign up</TextLink>
+        </>
+      }
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Email</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-brand-500 focus:outline-none"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Password</span>
-          <input
+        {error && <Alert tone="error">{error}</Alert>}
+
+        <Field
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          required
+          autoComplete="email"
+        />
+
+        <div>
+          <Field
+            label="Password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             required
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:border-brand-500 focus:outline-none"
+            autoComplete="current-password"
           />
-        </label>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-brand-600 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
+          <div className="mt-2 text-right">
+            <TextLink to="/forgot-password" className="text-xs">
+              Forgot your password?
+            </TextLink>
+          </div>
+        </div>
+
+        <Button type="submit" full size="lg" loading={submitting}>
           {submitting ? "Logging in..." : "Log in"}
-        </button>
+        </Button>
       </form>
-      <p className="mt-4 text-sm text-gray-600">
-        <Link to="/forgot-password" className="text-brand-600 hover:underline">
-          Forgot your password?
-        </Link>
-      </p>
-      <p className="mt-2 text-sm text-gray-600">
-        Need an account?{" "}
-        <Link to="/signup" className="text-brand-600 hover:underline">
-          Sign up
-        </Link>
-      </p>
-    </div>
+    </AuthLayout>
   );
 }

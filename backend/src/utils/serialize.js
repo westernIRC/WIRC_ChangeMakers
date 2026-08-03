@@ -13,6 +13,10 @@ function publicUser(user, streak) {
       cause: null,
       fundraisingLink: null,
       houseId: user.houseId,
+      // House membership is not part of anonymity - the House leaderboard is public and
+      // already links every House by name. Withholding it here would only break the
+      // profile's House-coloured styling without hiding anything.
+      houseName: user.house?.name ?? null,
       streak: streak ?? null,
     };
   }
@@ -26,6 +30,7 @@ function publicUser(user, streak) {
     cause: user.cause,
     fundraisingLink: user.fundraisingLink,
     houseId: user.houseId,
+    houseName: user.house?.name ?? null,
     streak: streak ?? null,
   };
 }

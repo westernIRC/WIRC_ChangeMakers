@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatWeekStart } from "../utils/weeks";
+import {
+  Alert,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  Field,
+  PageHeader,
+  SkeletonRows,
+  StreakBadge,
+} from "../components/ui.jsx";
 
 const TABS_VP = [
   { key: "members", label: "Members" },
@@ -22,20 +33,21 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-2xl font-bold">Admin</h1>
-      <p className="text-sm text-gray-600">
-        {isOverall ? "Full access across all Houses." : "Scoped to your own House."}
-      </p>
+      <PageHeader
+        eyebrow={isOverall ? "Overall admin" : "House admin"}
+        title="Admin"
+        subtitle={isOverall ? "Full access across all Houses." : "Scoped to your own House."}
+      />
 
-      <div className="mt-4 flex gap-2 border-b">
+      <div className="mb-5 inline-flex flex-wrap rounded-xl bg-ink-100 p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
+            type="button"
             onClick={() => setTab(t.key)}
-            className={`px-3 py-2 text-sm font-medium ${
-              tab === t.key
-                ? "border-b-2 border-brand-600 text-brand-700"
-                : "text-gray-500 hover:text-gray-700"
+            aria-pressed={tab === t.key}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
+              tab === t.key ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
             }`}
           >
             {t.label}
@@ -43,21 +55,22 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <div className="mt-6">
-        {tab === "members" && <MembersPanel user={user} isOverall={isOverall} />}
-        {tab === "audit" && <AuditLogPanel />}
-        {tab === "houses" && isOverall && <HousesPanel />}
-        {tab === "settings" && isOverall && <SettingsPanel />}
-      </div>
+      {tab === "members" && <MembersPanel user={user} isOverall={isOverall} />}
+      {tab === "audit" && <AuditLogPanel />}
+      {tab === "houses" && isOverall && <HousesPanel />}
+      {tab === "settings" && isOverall && <SettingsPanel />}
     </div>
   );
 }
+
+/* -------------------------------------------------------------------- members */
 
 function MembersPanel({ user, isOverall }) {
   const [houses, setHouses] = useState([]);
   const [houseId, setHouseId] = useState(isOverall ? "" : user.houseId);
   const [members, setMembers] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // { entryId, amount }
   const [message, setMessage] = useState("");
   const [pendingReassign, setPendingReassign] = useState({}); // { [memberId]: newHouseId }
@@ -77,11 +90,14 @@ function MembersPanel({ user, isOverall }) {
 
   async function loadMembers(id) {
     setError("");
+    setLoading(true);
     try {
       const data = await api.get(`/admin/houses/${id}/members`);
       setMembers(data.members);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -121,12 +137,15 @@ function MembersPanel({ user, isOverall }) {
   return (
     <div>
       {isOverall && (
-        <label className="mb-4 block text-sm">
-          <span className="mb-1 block font-medium text-gray-700">House</span>
+        <div className="mb-4 max-w-xs">
+          <label htmlFor="house-filter" className="label">
+            House
+          </label>
           <select
+            id="house-filter"
             value={houseId}
             onChange={(e) => setHouseId(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
+            className="input"
           >
             {houses.map((h) => (
               <option key={h.houseId} value={h.houseId}>
@@ -134,35 +153,47 @@ function MembersPanel({ user, isOverall }) {
               </option>
             ))}
           </select>
-        </label>
+        </div>
       )}
 
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      {message && <p className="mb-2 text-sm text-gray-600">{message}</p>}
+      {error && <Alert tone="error" className="mb-4">{error}</Alert>}
+      {message && <Alert tone="info" className="mb-4">{message}</Alert>}
 
-      <div className="space-y-4">
-        {members.map((m) => (
-          <div key={m.id} className="rounded border border-gray-200 bg-white p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">
-                  {m.name} <span className="text-xs font-normal text-gray-500">({m.role})</span>
-                </p>
-                <p className="text-xs text-gray-500">{m.email}</p>
+      {loading ? (
+        <SkeletonRows rows={4} />
+      ) : members.length === 0 ? (
+        <Card>
+          <EmptyState icon="👥" title="No members in this House yet">
+            New signups are assigned automatically as they register.
+          </EmptyState>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {members.map((m) => (
+            <Card key={m.id} className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-semibold text-ink-900">
+                    <span className="truncate">{m.name}</span>
+                    <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+                      {m.role}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-ink-500">{m.email}</p>
+                </div>
+                <StreakBadge weeks={m.streak} />
               </div>
-              <span className="text-sm text-gray-500">🔥 {m.streak} week streak</span>
-            </div>
 
-            {isOverall && (
-              <div className="mt-2 flex items-center gap-2 text-xs">
-                <label>
-                  Reassign House:{" "}
+              {isOverall && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-ink-50 p-3">
+                  <label htmlFor={`reassign-${m.id}`} className="text-xs font-medium text-ink-600">
+                    Reassign House
+                  </label>
                   <select
+                    id={`reassign-${m.id}`}
                     value={pendingReassign[m.id] ?? m.houseId}
-                    onChange={(e) =>
-                      setPendingReassign((p) => ({ ...p, [m.id]: e.target.value }))
-                    }
-                    className="rounded border border-gray-300 px-2 py-1"
+                    onChange={(e) => setPendingReassign((p) => ({ ...p, [m.id]: e.target.value }))}
+                    className="rounded-lg border border-ink-300 bg-white px-2.5 py-1.5 text-xs"
                   >
                     {houses.map((h) => (
                       <option key={h.houseId} value={h.houseId}>
@@ -170,148 +201,173 @@ function MembersPanel({ user, isOverall }) {
                       </option>
                     ))}
                   </select>
-                </label>
-                {pendingReassign[m.id] && pendingReassign[m.id] !== m.houseId && (
-                  <>
-                    <button
-                      onClick={() => handleConfirmReassign(m.id)}
-                      className="rounded bg-brand-600 px-2 py-1 font-medium text-white hover:bg-brand-700"
-                    >
-                      Confirm move
-                    </button>
-                    <button
-                      onClick={() =>
-                        setPendingReassign((p) => {
-                          const next = { ...p };
-                          delete next[m.id];
-                          return next;
-                        })
-                      }
-                      className="text-gray-500 hover:underline"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+                  {pendingReassign[m.id] && pendingReassign[m.id] !== m.houseId && (
+                    <>
+                      <Button size="sm" onClick={() => handleConfirmReassign(m.id)}>
+                        Confirm move
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setPendingReassign((p) => {
+                            const next = { ...p };
+                            delete next[m.id];
+                            return next;
+                          })
+                        }
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
 
-            {m.weeklyEntries?.length > 0 && (
-              <table className="mt-3 w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500">
-                    <th className="py-1">Week of</th>
-                    <th className="py-1">Amount</th>
-                    <th className="py-1" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {m.weeklyEntries.map((entry) => (
-                    <tr key={entry.id} className="border-t">
-                      <td className="py-1">{formatWeekStart(entry.weekStartDate)}</td>
-                      <td className="py-1">
-                        {editing?.entryId === entry.id ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editing.amount}
-                            onChange={(e) => setEditing({ entryId: entry.id, amount: e.target.value })}
-                            className="w-24 rounded border border-gray-300 px-2 py-1"
-                          />
-                        ) : (
-                          `$${Number(entry.amount).toFixed(2)}`
-                        )}
-                      </td>
-                      <td className="py-1 text-right">
-                        {editing?.entryId === entry.id ? (
-                          <>
-                            <button
-                              onClick={() => handleSaveEdit(entry.id)}
-                              className="mr-2 text-brand-600 hover:underline"
-                            >
-                              Save
-                            </button>
-                            <button onClick={() => setEditing(null)} className="text-gray-500 hover:underline">
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setEditing({ entryId: entry.id, amount: entry.amount })}
-                            className="text-brand-600 hover:underline"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        ))}
-      </div>
+              {m.weeklyEntries?.length > 0 && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-ink-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold">Week of</th>
+                        <th className="px-3 py-2 font-semibold">Amount</th>
+                        <th className="px-3 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink-200">
+                      {m.weeklyEntries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td className="px-3 py-2 text-ink-700">
+                            {formatWeekStart(entry.weekStartDate)}
+                          </td>
+                          <td className="px-3 py-2">
+                            {editing?.entryId === entry.id ? (
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editing.amount}
+                                onChange={(e) =>
+                                  setEditing({ entryId: entry.id, amount: e.target.value })
+                                }
+                                className="w-28 rounded-lg border border-ink-300 px-2.5 py-1.5 text-sm tabular-nums"
+                              />
+                            ) : (
+                              <span className="tabular-nums text-ink-700">
+                                ${Number(entry.amount).toFixed(2)}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {editing?.entryId === entry.id ? (
+                              <span className="flex justify-end gap-1">
+                                <Button size="sm" onClick={() => handleSaveEdit(entry.id)}>
+                                  Save
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                                  Cancel
+                                </Button>
+                              </span>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  setEditing({ entryId: entry.id, amount: entry.amount })
+                                }
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ audit log */
+
 function AuditLogPanel() {
   const [logs, setLogs] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .get("/admin/audit-log")
       .then((data) => setLogs(data.logs))
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (error) {
-    return <p className="rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>;
+  if (error) return <Alert tone="error">{error}</Alert>;
+  if (loading) return <SkeletonRows rows={5} />;
+
+  if (logs.length === 0) {
+    return (
+      <Card>
+        <EmptyState icon="📋" title="No edits logged yet">
+          Every admin change to a submitted amount is recorded here.
+        </EmptyState>
+      </Card>
+    );
   }
 
   return (
-    <table className="w-full overflow-hidden rounded border border-gray-200 bg-white text-sm">
-      <thead className="bg-gray-50 text-left text-gray-500">
-        <tr>
-          <th className="px-3 py-2">Member</th>
-          <th className="px-3 py-2">Week of</th>
-          <th className="px-3 py-2">Previous</th>
-          <th className="px-3 py-2">New</th>
-          <th className="px-3 py-2">Edited by</th>
-          <th className="px-3 py-2">When</th>
-        </tr>
-      </thead>
-      <tbody>
-        {logs.map((log) => (
-          <tr key={log.id} className="border-t">
-            <td className="px-3 py-2">{log.weeklyEntry.user.name}</td>
-            <td className="px-3 py-2">
-              {formatWeekStart(log.weeklyEntry.weekStartDate)}
-            </td>
-            <td className="px-3 py-2">${Number(log.previousAmount).toFixed(2)}</td>
-            <td className="px-3 py-2">${Number(log.newAmount).toFixed(2)}</td>
-            <td className="px-3 py-2">{log.editedBy.name}</td>
-            <td className="px-3 py-2">{new Date(log.editedAt).toLocaleString()}</td>
-          </tr>
-        ))}
-        {logs.length === 0 && (
+    <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white shadow-card">
+      <table className="w-full text-sm">
+        <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
           <tr>
-            <td colSpan={6} className="px-3 py-4 text-center text-gray-500">
-              No edits logged yet.
-            </td>
+            <th className="px-4 py-3 font-semibold">Member</th>
+            <th className="px-4 py-3 font-semibold">Week of</th>
+            <th className="px-4 py-3 font-semibold">Previous</th>
+            <th className="px-4 py-3 font-semibold">New</th>
+            <th className="px-4 py-3 font-semibold">Edited by</th>
+            <th className="px-4 py-3 font-semibold">When</th>
           </tr>
-        )}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="divide-y divide-ink-200">
+          {logs.map((log) => (
+            <tr key={log.id} className="transition hover:bg-ink-50/60">
+              <td className="whitespace-nowrap px-4 py-3 font-medium text-ink-800">
+                {log.weeklyEntry.user.name}
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 text-ink-600">
+                {formatWeekStart(log.weeklyEntry.weekStartDate)}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-ink-500 line-through">
+                ${Number(log.previousAmount).toFixed(2)}
+              </td>
+              <td className="px-4 py-3 font-semibold tabular-nums text-ink-900">
+                ${Number(log.newAmount).toFixed(2)}
+              </td>
+              <td className="whitespace-nowrap px-4 py-3 text-ink-600">{log.editedBy.name}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-ink-500">
+                {new Date(log.editedAt).toLocaleString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
+
+/* --------------------------------------------------------------------- houses */
 
 function HousesPanel() {
   const [houses, setHouses] = useState([]);
   const [form, setForm] = useState({ name: "", portfolioName: "" });
   const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
 
   async function load() {
     try {
@@ -329,16 +385,22 @@ function HousesPanel() {
   async function handleCreate(e) {
     e.preventDefault();
     setError("");
+    setCreating(true);
     try {
       await api.post("/houses", form);
       setForm({ name: "", portfolioName: "" });
       await load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setCreating(false);
     }
   }
 
-  async function handleDelete(houseId) {
+  async function handleDelete(houseId, name) {
+    // Deleting a House is irreversible and the API rejects it outright if anyone is still
+    // assigned, so confirm before spending the round trip.
+    if (!window.confirm(`Delete ${name}? This can't be undone.`)) return;
     setError("");
     try {
       await api.delete(`/houses/${houseId}`);
@@ -349,50 +411,59 @@ function HousesPanel() {
   }
 
   return (
-    <div>
-      <form onSubmit={handleCreate} className="mb-6 flex flex-wrap items-end gap-3">
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Name</span>
-          <input
-            required
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 block font-medium text-gray-700">Portfolio</span>
-          <input
-            required
-            value={form.portfolioName}
-            onChange={(e) => setForm((f) => ({ ...f, portfolioName: e.target.value }))}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
-        >
-          Add House
-        </button>
-      </form>
-      {error && <p className="mb-4 text-sm text-red-700">{error}</p>}
+    <div className="space-y-4">
+      <Card className="p-5">
+        <CardHeader title="Add a House" subtitle="Members can be assigned to it right away." />
+        <form onSubmit={handleCreate} className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Name"
+              required
+              value={form.name}
+              onChange={(v) => setForm((f) => ({ ...f, name: v }))}
+              placeholder="Team Outreach"
+            />
+            <Field
+              label="Portfolio"
+              required
+              value={form.portfolioName}
+              onChange={(v) => setForm((f) => ({ ...f, portfolioName: v }))}
+              placeholder="Outreach"
+            />
+          </div>
+          <Button type="submit" size="sm" loading={creating}>
+            {creating ? "Adding..." : "Add House"}
+          </Button>
+        </form>
+      </Card>
 
-      <ul className="divide-y rounded border border-gray-200 bg-white">
-        {houses.map((h) => (
-          <li key={h.houseId} className="flex items-center justify-between px-4 py-3">
-            <span>
-              {h.name} <span className="text-xs text-gray-500">({h.portfolioName})</span>
-            </span>
-            <button onClick={() => handleDelete(h.houseId)} className="text-sm text-red-600 hover:underline">
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+      {error && <Alert tone="error">{error}</Alert>}
+
+      <Card>
+        <ul className="divide-y divide-ink-200">
+          {houses.map((h) => (
+            <li key={h.houseId} className="flex items-center justify-between gap-3 px-5 py-3.5">
+              <span className="min-w-0">
+                <span className="font-medium text-ink-800">{h.name}</span>{" "}
+                <span className="text-xs text-ink-500">({h.portfolioName})</span>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => handleDelete(h.houseId, h.name)}
+              >
+                Delete
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </Card>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------- settings */
 
 // Keeps derived weights free of float artefacts like 0.30000000000000004.
 function round2(n) {
@@ -402,6 +473,7 @@ function round2(n) {
 function SettingsPanel() {
   const [settings, setSettings] = useState(null);
   const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function load() {
     try {
@@ -419,6 +491,7 @@ function SettingsPanel() {
   async function handleSave(e) {
     e.preventDefault();
     setMessage("");
+    setSaving(true);
     try {
       await api.put("/admin/settings", {
         weeklyMinimum: Number(settings.weeklyMinimum),
@@ -428,53 +501,62 @@ function SettingsPanel() {
       setMessage("Settings saved.");
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
-  if (!settings) return <p className="text-sm text-gray-500">Loading...</p>;
+  if (!settings) return <SkeletonRows rows={3} />;
 
   return (
-    <form onSubmit={handleSave} className="max-w-sm space-y-4 rounded border border-gray-200 bg-white p-4">
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-gray-700">Weekly minimum ($)</span>
-        <input
+    <Card className="max-w-md p-5">
+      <CardHeader
+        title="Campaign settings"
+        subtitle="Applies to every House and takes effect immediately."
+      />
+      <form onSubmit={handleSave} className="mt-4 space-y-4">
+        <Field
+          label="Weekly minimum ($)"
           type="number"
           step="0.01"
           min="0.01"
           max="1000000"
           value={settings.weeklyMinimum}
-          onChange={(e) => setSettings((s) => ({ ...s, weeklyMinimum: e.target.value }))}
-          className="w-full rounded border border-gray-300 px-3 py-2"
+          onChange={(v) => setSettings((s) => ({ ...s, weeklyMinimum: v }))}
+          hint="Entries below this still count, but are flagged as under the minimum."
         />
-      </label>
-      <label className="block text-sm">
-        <span className="mb-1 block font-medium text-gray-700">Ranking method</span>
-        <select
-          value={settings.rankingMethod}
-          onChange={(e) => setSettings((s) => ({ ...s, rankingMethod: e.target.value }))}
-          className="w-full rounded border border-gray-300 px-3 py-2"
-        >
-          <option value="participation_rate">Participation rate</option>
-          <option value="streak_length">Streak length</option>
-          <option value="blended">Blended</option>
-        </select>
-      </label>
-      {settings.rankingMethod === "blended" && (
+
         <div>
-          <div className="flex gap-3">
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Participation weight</span>
-              <input
+          <label htmlFor="ranking" className="label">
+            Ranking method
+          </label>
+          <select
+            id="ranking"
+            value={settings.rankingMethod}
+            onChange={(e) => setSettings((s) => ({ ...s, rankingMethod: e.target.value }))}
+            className="input"
+          >
+            <option value="participation_rate">Participation rate</option>
+            <option value="streak_length">Streak length</option>
+            <option value="blended">Blended</option>
+          </select>
+        </div>
+
+        {settings.rankingMethod === "blended" && (
+          <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field
+                label="Participation weight"
                 type="number"
                 step="0.05"
                 min="0"
                 max="1"
                 value={settings.blendedWeights.participation}
-                onChange={(e) => {
+                onChange={(v) => {
                   // The two weights have to add up to 1 or scores stop being on a 0-1 scale,
                   // so streak is derived rather than entered separately - there's no way to
                   // type a pair that the server will reject.
-                  const participation = Math.min(1, Math.max(0, Number(e.target.value) || 0));
+                  const participation = Math.min(1, Math.max(0, Number(v) || 0));
                   setSettings((s) => ({
                     ...s,
                     blendedWeights: {
@@ -483,32 +565,29 @@ function SettingsPanel() {
                     },
                   }));
                 }}
-                className="w-24 rounded border border-gray-300 px-3 py-2"
               />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block font-medium text-gray-700">Streak weight</span>
-              <input
+              <Field
+                label="Streak weight"
                 type="number"
                 value={settings.blendedWeights.streak}
                 readOnly
                 disabled
-                className="w-24 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-gray-500"
+                className="input bg-ink-100 text-ink-500"
               />
-            </label>
+            </div>
+            <p className="mt-2 text-xs text-ink-500">
+              Streak weight is whatever's left over — the two always add up to 1.
+            </p>
           </div>
-          <p className="mt-1 text-xs text-gray-500">
-            Streak weight is whatever's left over - the two always add up to 1.
-          </p>
+        )}
+
+        <div className="flex items-center gap-3">
+          <Button type="submit" loading={saving}>
+            {saving ? "Saving..." : "Save settings"}
+          </Button>
+          {message && <span className="text-sm text-ink-500">{message}</span>}
         </div>
-      )}
-      <button
-        type="submit"
-        className="rounded bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
-      >
-        Save Settings
-      </button>
-      {message && <p className="text-sm text-gray-600">{message}</p>}
-    </form>
+      </form>
+    </Card>
   );
 }

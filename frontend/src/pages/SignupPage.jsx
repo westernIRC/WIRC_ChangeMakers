@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import HouseReveal from "../components/HouseReveal.jsx";
+import { AuthLayout, Alert, Button, Field, Checkbox, TextLink } from "../components/ui.jsx";
 
 const initialForm = {
   name: "",
@@ -45,6 +47,9 @@ export default function SignupPage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Set once signup succeeds; switches the page over to the House reveal instead of
+  // navigating straight to the dashboard.
+  const [assignedHouseId, setAssignedHouseId] = useState(undefined);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -63,29 +68,44 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      await signup(form);
-      navigate("/dashboard");
+      const newUser = await signup(form);
+      setAssignedHouseId(newUser?.houseId ?? null);
     } catch (err) {
       if (err.field) {
         setErrors((e) => ({ ...e, [err.field]: err.message }));
       } else {
         setFormError(err.message);
       }
-    } finally {
       setSubmitting(false);
     }
+    // Deliberately no `finally`: on success the reveal takes over the screen, and clearing
+    // the submitting flag would flash the form's idle state behind it.
+  }
+
+  if (assignedHouseId !== undefined) {
+    return <HouseReveal houseId={assignedHouseId} onDone={() => navigate("/dashboard")} />;
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
-      <h1 className="mb-6 text-2xl font-bold">Create your account</h1>
-      {formError && <p className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
+    <AuthLayout
+      wide
+      title="Join Changemakers"
+      subtitle="Pick your cause, get sorted into a House, and start your streak."
+      footer={
+        <>
+          Already have an account? <TextLink to="/login">Log in</TextLink>
+        </>
+      }
+    >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {formError && <Alert tone="error">{formError}</Alert>}
+
         <Field
           label="Name"
           value={form.name}
           onChange={(v) => update("name", v)}
           error={errors.name}
+          autoComplete="name"
         />
         <Field
           label="Email"
@@ -93,6 +113,7 @@ export default function SignupPage() {
           value={form.email}
           onChange={(v) => update("email", v)}
           error={errors.email}
+          autoComplete="email"
         />
         <Field
           label="Password"
@@ -100,71 +121,57 @@ export default function SignupPage() {
           value={form.password}
           onChange={(v) => update("password", v)}
           error={errors.password}
+          hint="At least 8 characters."
+          autoComplete="new-password"
         />
-        <Field
-          label="Year of Study"
-          value={form.year}
-          onChange={(v) => update("year", v)}
-          placeholder="e.g. 2nd Year"
-        />
-        <Field label="Program" value={form.program} onChange={(v) => update("program", v)} />
-        <Field
-          label="Cause"
-          value={form.cause}
-          onChange={(v) => update("cause", v)}
-          placeholder="What are you fundraising for?"
-          error={errors.cause}
-        />
-        <Field
-          label="Fundraising link"
-          value={form.fundraisingLink}
-          onChange={(v) => update("fundraisingLink", v)}
-          placeholder="https://islamicrelief.ca/your-campaign"
-          error={errors.fundraisingLink}
-        />
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.isAnonymous}
-            onChange={(e) => update("isAnonymous", e.target.checked)}
-          />
-          Hide my name on my public profile (show "Anonymous" instead)
-        </label>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded bg-brand-600 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-        >
-          {submitting ? "Creating account..." : "Sign up"}
-        </button>
-      </form>
-      <p className="mt-4 text-sm text-gray-600">
-        Already have an account?{" "}
-        <Link to="/login" className="text-brand-600 hover:underline">
-          Log in
-        </Link>
-      </p>
-    </div>
-  );
-}
 
-function Field({ label, type = "text", value, onChange, placeholder, error }) {
-  return (
-    <label className="block text-sm">
-      <span className="mb-1 block font-medium text-gray-700">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        aria-invalid={Boolean(error)}
-        className={`w-full rounded border px-3 py-2 focus:outline-none ${
-          error
-            ? "border-red-500 focus:border-red-500"
-            : "border-gray-300 focus:border-brand-500"
-        }`}
-      />
-      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
-    </label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Year of study"
+            value={form.year}
+            onChange={(v) => update("year", v)}
+            placeholder="e.g. 2nd Year"
+          />
+          <Field
+            label="Program"
+            value={form.program}
+            onChange={(v) => update("program", v)}
+            placeholder="e.g. Health Sci"
+          />
+        </div>
+
+        <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+            Your cause
+          </p>
+          <div className="space-y-4">
+            <Field
+              label="What are you fundraising for?"
+              value={form.cause}
+              onChange={(v) => update("cause", v)}
+              placeholder="e.g. Emergency relief in Gaza"
+              error={errors.cause}
+            />
+            <Field
+              label="Fundraising link"
+              value={form.fundraisingLink}
+              onChange={(v) => update("fundraisingLink", v)}
+              placeholder="https://islamicrelief.ca/your-campaign"
+              error={errors.fundraisingLink}
+            />
+          </div>
+        </div>
+
+        <Checkbox
+          label={'Hide my name on my public profile (show "Anonymous" instead)'}
+          checked={form.isAnonymous}
+          onChange={(v) => update("isAnonymous", v)}
+        />
+
+        <Button type="submit" full size="lg" loading={submitting}>
+          {submitting ? "Creating your account..." : "Create account"}
+        </Button>
+      </form>
+    </AuthLayout>
   );
 }
