@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 // it means a misconfigured production deploy would silently print reset links to its logs
 // instead of emailing them, so `assertEmailConfigured()` is called at startup in production.
 const SMTP_HOST = process.env.SMTP_HOST;
-const FROM = process.env.MAIL_FROM || "WIRC Change Makers <no-reply@wirc.local>";
+const FROM = process.env.MAIL_FROM || "WIRC Changemakers <no-reply@wirc.local>";
 
 let transporter = null;
 
@@ -61,12 +61,12 @@ async function sendMail({ to, subject, text, html }) {
 
 function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes }) {
   const greeting = name ? `Hi ${name},` : "Hi,";
-  const subject = "Reset your WIRC Change Makers password";
+  const subject = "Reset your WIRC Changemakers password";
 
   const text = [
     greeting,
     "",
-    "We received a request to reset your WIRC Change Makers password.",
+    "We received a request to reset your WIRC Changemakers password.",
     "Open the link below to choose a new one:",
     "",
     resetUrl,
@@ -77,7 +77,7 @@ function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes }) {
 
   const html = `
     <p>${greeting}</p>
-    <p>We received a request to reset your WIRC Change Makers password.</p>
+    <p>We received a request to reset your WIRC Changemakers password.</p>
     <p><a href="${resetUrl}">Choose a new password</a></p>
     <p style="color:#555;font-size:13px">
       This link expires in ${expiresInMinutes} minutes and can only be used once.<br>
@@ -89,4 +89,66 @@ function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes }) {
   return sendMail({ to, subject, text, html });
 }
 
-module.exports = { sendMail, sendPasswordResetEmail, isConfigured, assertEmailConfigured };
+// Sent once, right after signup. Doubles as proof to the member that the address they typed
+// actually works - if this never arrives, their password reset won't either, and it's much
+// better to find that out on day one than the day they're locked out.
+function sendWelcomeEmail({ to, name, houseName, cause, dashboardUrl }) {
+  const greeting = name ? `Hi ${name},` : "Hi,";
+  const subject = "Welcome to WesternIRC Changemakers";
+
+  const houseLine = houseName
+    ? `You've been placed in ${houseName}. You'll climb the leaderboard together.`
+    : "You'll be placed in a House shortly.";
+
+  const causeLine = cause ? `You're fundraising for: ${cause}` : null;
+
+  const text = [
+    greeting,
+    "",
+    "Your Changemakers account is ready.",
+    "",
+    houseLine,
+    causeLine,
+    "",
+    "How it works: Log a donation once a week, every week. The leaderboard ranks on",
+    "consistency, your streak and your House's participation rate, not on totals.",
+    "Showing up matters more than the amount. Your dollar amounts stay private either way.",
+    "",
+    `Go to your dashboard: ${dashboardUrl}`,
+    "",
+    "If you didn't create this account, you can ignore this email.",
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  const html = `
+    <p>${greeting}</p>
+    <p>Your Changemakers account is ready.</p>
+    <p><strong>${houseLine}</strong></p>
+    ${causeLine ? `<p style="color:#555">${causeLine}</p>` : ""}
+    <p>
+      <a href="${dashboardUrl}"
+         style="display:inline-block;background:#0a63ac;color:#fff;text-decoration:none;
+                padding:10px 18px;border-radius:8px;font-weight:600">Go to your dashboard</a>
+    </p>
+    <p style="color:#555;font-size:13px">
+      <strong>How it works:</strong> Log a donation once a week, every week. The leaderboard
+      ranks on consistency, your streak and your House's participation rate, not on totals.
+      Showing up matters more than the amount. Your dollar amounts stay private either way.
+    </p>
+    <p style="color:#888;font-size:12px">
+      If you didn't create this account, you can ignore this email.<br>
+      If the button doesn't work, paste this into your browser:<br>${dashboardUrl}
+    </p>
+  `;
+
+  return sendMail({ to, subject, text, html });
+}
+
+module.exports = {
+  sendMail,
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+  isConfigured,
+  assertEmailConfigured,
+};

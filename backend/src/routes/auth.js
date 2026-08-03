@@ -13,7 +13,7 @@ const {
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { adminUser } = require("../utils/serialize");
 const { getCurrentStreak } = require("../services/streakService");
-const { sendPasswordResetEmail } = require("../services/emailService");
+const { sendPasswordResetEmail, sendWelcomeEmail } = require("../services/emailService");
 const { rateLimit, ipKey, emailKey } = require("../middleware/rateLimit");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -109,6 +109,7 @@ router.post("/signup", asyncHandler(async (req, res) => {
         houseId,
         role: "member",
       },
+      include: { house: { select: { name: true } } },
     });
   } catch (err) {
     // The findUnique above is a check-then-act race: two simultaneous signups with the same
@@ -124,6 +125,22 @@ router.post("/signup", asyncHandler(async (req, res) => {
   const token = signToken(user);
   res.cookie("token", token, COOKIE_OPTIONS);
   res.status(201).json({ user: adminUser(user, 0) });
+
+  // Deliberately after the response and deliberately not awaited: the account already exists
+  // and the client is mid-animation, so making signup wait on an SMTP round trip would slow
+  // it down for no benefit. A failure here must never turn a successful signup into an error,
+  // but it does need to be loud in the logs - a silently broken mailer is the failure mode
+  // that bites later, when someone needs a password reset.
+  const appUrl = process.env.APP_URL || process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+  sendWelcomeEmail({
+    to: user.email,
+    name: user.name,
+    houseName: user.house?.name ?? null,
+    cause: user.cause,
+    dashboardUrl: `${appUrl.replace(/\/$/, "")}/dashboard`,
+  }).catch((err) => {
+    console.error("Failed to send welcome email:", err);
+  });
 }));
 
 const loginSchema = z.object({

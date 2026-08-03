@@ -1,4 +1,4 @@
-# WIRC Change Makers
+# WIRC Changemakers
 
 Fundraising + team-competition web app for Western Islamic Relief Canada. See `CHANGE_MAKERS_PROJECT_SPEC.md` for the full product spec.
 
