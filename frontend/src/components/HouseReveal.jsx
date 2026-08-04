@@ -249,7 +249,7 @@ function FallbackCard({ onDone, ctaRef }) {
       <div className="text-5xl">🎉</div>
       <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white">You're in!</h1>
       <p className="mt-2 max-w-xs text-sm text-white/60">
-        Your account is ready. We couldn't load your House just now — it'll be on your dashboard.
+        Your account is ready. We couldn't load your House just now, but it'll be on your dashboard.
       </p>
       <div className="mt-7">
         <Button ref={ctaRef} onClick={onDone} variant="inverse" size="lg">

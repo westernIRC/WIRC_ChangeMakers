@@ -78,7 +78,7 @@ export default function DashboardPage() {
     try {
       await api.post("/entries", { amount: Number(amount) });
       setAmount("");
-      setMessage("Entry submitted — streak extended!");
+      setMessage("Entry submitted. Streak extended!");
       await loadEntries();
       await refresh();
     } catch (err) {

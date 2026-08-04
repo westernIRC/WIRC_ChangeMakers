@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
       <PageHeader
         eyebrow="Standings"
         title="Leaderboard"
-        subtitle="Ranked by consistency — participation rate and streak length — not by who raised the most."
+        subtitle="Ranked by consistency, meaning participation rate and streak length, not by who raised the most."
       />
 
       <div className="mb-5 inline-flex rounded-xl bg-ink-100 p-1">

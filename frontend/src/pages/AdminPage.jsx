@@ -576,7 +576,7 @@ function SettingsPanel() {
               />
             </div>
             <p className="mt-2 text-xs text-ink-500">
-              Streak weight is whatever's left over — the two always add up to 1.
+              Streak weight is whatever's left over. The two always add up to 1.
             </p>
           </div>
         )}
