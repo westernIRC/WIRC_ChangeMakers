@@ -13,11 +13,11 @@ const STEPS = [
   },
   {
     title: "Get randomly sorted into a House",
-    body: "The moment you sign up you're placed in one of eight Houses at random. No picking, no swapping — from then on you climb together.",
+    body: "The moment you sign up you're placed in one of eight Houses at random. No picking, no swapping. From then on you climb together.",
   },
   {
     title: "Keep it going",
-    body: "Log one donation a week, every week. A long streak beats one big week — that's the whole point.",
+    body: "Log one donation a week, every week. A long streak beats one big week. That's the whole point.",
   },
 ];
 
@@ -68,7 +68,7 @@ export default function HomePage() {
               style={{ animationDelay: "90ms" }}
             >
               Pick a cause, give what you can, and do it again next week. You'll be randomly
-              sorted into one of eight Houses, and the leaderboard counts who keeps showing up —
+              sorted into one of eight Houses, and the leaderboard counts who keeps showing up,
               not who gives the most.
             </p>
 
@@ -82,7 +82,7 @@ export default function HomePage() {
                 </Button>
               ) : (
                 <Button to="/signup" size="lg">
-                  Get started — it's free
+                  Get started, it's free
                 </Button>
               )}
               {/* One button, one link. Two buttons of equal weight make the reader stop and
