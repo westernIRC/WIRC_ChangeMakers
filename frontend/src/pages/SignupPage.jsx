@@ -140,8 +140,8 @@ export default function SignupPage() {
           />
         </div>
 
-        <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+        <div className="border-t border-ink-200 pt-5">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
             Your cause
           </p>
           <div className="space-y-4">

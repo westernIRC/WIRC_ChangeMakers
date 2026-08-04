@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
 import { isCurrentWeek, formatWeekStart } from "../utils/weeks";
-import { houseTheme, houseGradient } from "../utils/houseTheme";
+import { houseTheme } from "../utils/houseTheme";
 import {
   Alert,
   Button,
@@ -78,7 +78,7 @@ export default function DashboardPage() {
     try {
       await api.post("/entries", { amount: Number(amount) });
       setAmount("");
-      setMessage("Entry submitted — streak extended!");
+      setMessage("Entry submitted. Streak extended!");
       await loadEntries();
       await refresh();
     } catch (err) {
@@ -105,53 +105,43 @@ export default function DashboardPage() {
   const theme = houseTheme(house);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      {/* ------------------------------------------------------------ house banner */}
-      <div
-        className="animate-fade-up overflow-hidden rounded-2xl p-6 shadow-lift sm:p-7"
-        style={{
-          backgroundImage: house
-            ? houseGradient(house)
-            : "linear-gradient(135deg, #4d5567, #252b38)",
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-white/65">Welcome back,</p>
-            <h1 className="truncate text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              {user?.name}
-            </h1>
-            <p className="mt-1.5 text-sm text-white/75">
-              {house ? (
-                <Link
-                  to={`/houses/${house.id}`}
-                  className="inline-flex items-center gap-1.5 font-semibold text-white hover:underline"
-                >
-                  <span aria-hidden="true">{theme.emoji}</span>
-                  {house.name}
-                </Link>
-              ) : houseUnavailable ? (
-                <span className="text-white/60">House unavailable right now</span>
-              ) : (
-                <span className="text-white/60">Loading your House…</span>
-              )}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-2xl bg-white/15 px-4 py-3 backdrop-blur-sm">
-            <span className={`text-2xl ${streak > 0 ? "" : "grayscale opacity-60"}`}>🔥</span>
-            <div>
-              <p className="text-2xl font-bold leading-none tabular-nums text-white">{streak}</p>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-white/65">
-                week{streak === 1 ? "" : "s"}
-              </p>
-            </div>
-          </div>
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* ------------------------------------------------------------ house masthead */}
+      {/* The gradient banner is gone. The House's colour is now a rule under the name rather
+          than a full-bleed fill, which lets the member's own name be the biggest thing on
+          their own dashboard. */}
+      <div className="animate-fade-up border-b border-ink-200 pb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+          Welcome back
+        </p>
+        <h1 className="mt-2.5 truncate font-display text-4xl font-medium tracking-[-0.015em] text-ink-900 sm:text-5xl">
+          {user?.name}
+        </h1>
+        <div className="mt-3.5 flex items-center gap-3">
+          {house ? (
+            <>
+              <span
+                aria-hidden="true"
+                className="h-1 w-10 shrink-0 rounded-full"
+                style={{ background: theme.accent }}
+              />
+              <Link
+                to={`/houses/${house.id}`}
+                className="font-display text-lg font-medium text-ink-900 underline decoration-ink-300 decoration-1 underline-offset-[3px] transition hover:decoration-ink-900"
+              >
+                {house.name}
+              </Link>
+            </>
+          ) : houseUnavailable ? (
+            <span className="text-sm text-ink-500">House unavailable right now</span>
+          ) : (
+            <span className="text-sm text-ink-500">Loading your House…</span>
+          )}
         </div>
       </div>
 
       {/* -------------------------------------------------------------- quick stats */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mt-7 grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3">
         <Stat label="Current streak" value={`${streak} wk`} accent={theme.accent} />
         <Stat label="Weeks logged" value={entries.length} />
         <Stat
@@ -162,7 +152,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ------------------------------------------------------------------ submit */}
-      <Card className="mt-4 p-5 sm:p-6">
+      <Card className="mt-9 p-5 sm:p-6">
         <CardHeader
           title="This week's donation"
           subtitle="Once a week, every week. Entries can't be edited after submission."
@@ -170,14 +160,11 @@ export default function DashboardPage() {
 
         <div className="mt-4">
           {alreadySubmittedThisWeek ? (
-            <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5">
-              <span className="text-xl">✅</span>
-              <div>
-                <p className="text-sm font-semibold text-emerald-900">You're done for this week</p>
-                <p className="text-xs text-emerald-700">
-                  Come back next Monday to keep the streak going.
-                </p>
-              </div>
+            <div className="border-y border-r border-l-2 border-emerald-200 border-l-emerald-600 bg-emerald-50 px-4 py-3.5">
+              <p className="text-sm font-semibold text-emerald-900">You're done for this week</p>
+              <p className="mt-0.5 text-xs text-emerald-700">
+                Come back next Monday to keep the streak going.
+              </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
@@ -224,18 +211,18 @@ export default function DashboardPage() {
       </Card>
 
       {/* ----------------------------------------------------------------- history */}
-      <Card className="mt-4 p-5 sm:p-6">
+      <Card className="mt-6 p-5 sm:p-6">
         <CardHeader title="Your submissions" subtitle="Newest first." />
 
         <div className="mt-4">
           {loading ? (
             <SkeletonRows rows={3} />
           ) : entries.length === 0 ? (
-            <EmptyState icon="🌱" title="No submissions yet">
+            <EmptyState title="No submissions yet">
               Log your first donation above and your streak starts this week.
             </EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-ink-200">
+            <div className="border border-ink-200">
               <table className="w-full text-sm">
                 <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
                   <tr>
@@ -274,7 +261,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* ----------------------------------------------------------------- privacy */}
-      <Card className="mt-4 p-5 sm:p-6">
+      <Card className="mt-6 p-5 sm:p-6">
         <CardHeader
           title="Privacy"
           subtitle="Dollar amounts are always private. This only controls your name."

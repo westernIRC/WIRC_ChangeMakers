@@ -63,10 +63,14 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="border-t border-ink-200/70 bg-white/60">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-ink-500">
-          <p>Western Islamic Relief Canada · Changemakers</p>
-          <p>Dollar amounts are always private. Only streaks are public.</p>
+      <footer className="mt-16 border-t border-ink-200">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
+            Western Islamic Relief Canada · Changemakers
+          </p>
+          <p className="text-xs text-ink-500">
+            Dollar amounts are always private. Only streaks are public.
+          </p>
         </div>
       </footer>
     </div>

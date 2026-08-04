@@ -40,6 +40,33 @@ function scoreHouse(participationRate, avgStreak, settings) {
   }
 }
 
+// Scores are floats, so two Houses that are genuinely level can differ in the last bit or two.
+// Anything under this counts as a tie rather than a rank.
+const SCORE_EPSILON = 1e-9;
+
+// Consistency first, then money. With eight Houses and small rosters, ties on the consistency
+// score are common - any week where every member of two Houses logs a donation gives both a
+// 100% rate and the same average streak. Those ties used to land in whatever order Postgres
+// returned the Houses, so a House could gain or lose a rank without anything about it changing.
+//
+// Amount raised breaks the tie. It stays strictly secondary: a House never out-ranks a more
+// consistent one by raising more, and the total is already public on the leaderboard, so this
+// exposes nothing new. Totals are compared in whole cents, which is the precision they're
+// stored and displayed at - summing floats makes a raw comparison unreliable below that.
+//
+// Under the blended method a score tie means the participation/streak combination is level.
+// Under participation_rate or streak_length the admin has chosen a single metric, so a tie on
+// that metric is the tie - the other metric is deliberately not consulted.
+function compareHouses(a, b) {
+  if (Math.abs(a.score - b.score) > SCORE_EPSILON) return b.score - a.score;
+
+  const cents = Math.round(b.total * 100) - Math.round(a.total * 100);
+  if (cents !== 0) return cents;
+
+  // Dead level on both. Order by name so the standings don't reshuffle between requests.
+  return a.name.localeCompare(b.name);
+}
+
 // Ranks individual members by current streak, independent of how their House is doing overall.
 // Never includes dollar amounts (those stay private) - streak is the public consistency signal.
 async function getIndividualLeaderboard() {
@@ -129,13 +156,14 @@ async function getLeaderboard(period) {
     };
   });
 
-  rows.sort((a, b) => b.score - a.score);
+  rows.sort(compareHouses);
   return rows.map((row, i) => ({ ...row, rank: i + 1 }));
 }
 
 module.exports = {
   getHouseTotal,
   scoreHouse,
+  compareHouses,
   getLeaderboard,
   getIndividualLeaderboard,
   normalizePeriod,

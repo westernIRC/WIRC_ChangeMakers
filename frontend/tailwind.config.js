@@ -32,6 +32,9 @@ export default {
         },
       },
       fontFamily: {
+        // Additive only. Nothing outside the homepage uses `font-display`, so adding this
+        // changes no existing page - it just makes the serif available.
+        display: ["Newsreader", "Iowan Old Style", "Georgia", "Times New Roman", "serif"],
         sans: [
           "Inter var",
           "Inter",

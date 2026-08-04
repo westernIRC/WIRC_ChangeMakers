@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
-import { houseTheme, houseGradient, houseTint } from "../utils/houseTheme";
+import { houseTheme, houseTint } from "../utils/houseTheme";
 import {
   Alert,
   Card,
@@ -21,39 +21,25 @@ const PERIODS = [
   { value: "all", label: "Campaign to date" },
 ];
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+const VIEWS = [
+  { value: "houses", label: "Houses" },
+  { value: "individuals", label: "Individuals" },
+];
 
 export default function LeaderboardPage() {
   const [view, setView] = useState("houses");
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-10">
       <PageHeader
         eyebrow="Standings"
         title="Leaderboard"
-        subtitle="Ranked by consistency — participation rate and streak length — not by who raised the most."
+        subtitle="Ranked by consistency, meaning participation rate and streak length, not by who raised the most."
       />
 
-      <div className="mb-5 inline-flex rounded-xl bg-ink-100 p-1">
-        {[
-          { value: "houses", label: "Houses" },
-          { value: "individuals", label: "Individuals" },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setView(tab.value)}
-            aria-pressed={view === tab.value}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-              view === tab.value
-                ? "bg-white text-ink-900 shadow-sm"
-                : "text-ink-500 hover:text-ink-800"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Was a pill group in a grey trough; now the same underlined tabs as the header, via
+          the shared control. */}
+      <SegmentedControl options={VIEWS} value={view} onChange={setView} className="mb-7" />
 
       {view === "houses" ? <HouseLeaderboard /> : <IndividualLeaderboard />}
     </div>
@@ -78,116 +64,115 @@ function HouseLeaderboard() {
       .finally(() => setLoading(false));
   }, [period]);
 
-  const podium = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
-
   return (
     <div>
-      <SegmentedControl options={PERIODS} value={period} onChange={setPeriod} />
+      {/* The period filter sits under the Houses/Individuals tabs, so it drops the container
+          rule to stay clearly subordinate to them. */}
+      <SegmentedControl
+        options={PERIODS}
+        value={period}
+        onChange={setPeriod}
+        className="!border-b-0"
+      />
 
       {error ? (
         <Alert tone="error" className="mt-5">
           {error}
         </Alert>
       ) : loading ? (
-        <SkeletonRows rows={5} className="mt-5" />
+        <SkeletonRows rows={5} className="mt-6" />
       ) : leaderboard.length === 0 ? (
-        <Card className="mt-5">
-          <EmptyState icon="🏁" title="Nothing here yet">
+        <Card className="mt-6">
+          <EmptyState title="Nothing here yet">
             No Houses have logged donations for this period.
           </EmptyState>
         </Card>
       ) : (
-        <>
-          {/* Visual order puts 1st in the middle on desktop; source order stays 1-2-3 so
-              screen readers and keyboard tabbing still follow the ranking. */}
-          <div className="mt-5 grid gap-3 sm:grid-cols-3 sm:items-end">
-            {podium.map((h, i) => (
-              <PodiumCard key={h.houseId} house={h} index={i} />
-            ))}
+        /* One ranked index instead of three gradient podium cards above a separate table.
+           The podium split meant 1st-3rd and 4th-8th were formatted so differently you
+           couldn't compare them; a single list with the leaders set larger keeps the emphasis
+           without breaking the column alignment. */
+        <div className="mt-6">
+          <div className="hidden grid-cols-[2.75rem_1fr_6rem_7rem_5rem] items-center gap-4 border-b-2 border-ink-900 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-500 sm:grid">
+            <span>#</span>
+            <span>House</span>
+            <span className="text-right">Raised</span>
+            <span>Participation</span>
+            <span className="text-right">Avg streak</span>
           </div>
-
-          {rest.length > 0 && (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-card">
-              <table className="w-full text-sm">
-                <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">#</th>
-                    <th className="px-4 py-3 font-semibold">House</th>
-                    <th className="px-4 py-3 font-semibold">Raised</th>
-                    <th className="px-4 py-3 font-semibold">Participation</th>
-                    <th className="px-4 py-3 text-right font-semibold">Avg streak</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink-200">
-                  {rest.map((h) => {
-                    const theme = houseTheme(h.name);
-                    return (
-                      <tr key={h.houseId} className="transition hover:bg-ink-50/60">
-                        <td className="px-4 py-3 font-bold tabular-nums text-ink-400">{h.rank}</td>
-                        <td className="px-4 py-3">
-                          <Link
-                            to={`/houses/${h.houseId}`}
-                            className="inline-flex items-center gap-2 font-medium text-ink-800 hover:text-brand-700"
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="h-2.5 w-2.5 shrink-0 rounded-full"
-                              style={{ background: theme.accent }}
-                            />
-                            {h.name}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-3 tabular-nums text-ink-600">
-                          ${h.total.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <ParticipationBar rate={h.participationRate} accent={theme.accent} />
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-ink-600">
-                          {h.avgStreak.toFixed(1)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+          <ul>
+            {leaderboard.map((h, i) => (
+              <HouseRow key={h.houseId} house={h} index={i} />
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
 }
 
-function PodiumCard({ house, index }) {
+function HouseRow({ house, index }) {
   const theme = houseTheme(house.name);
-  // 1st sits highest, then 3rd, then 2nd — mirrors a real podium without reordering the DOM.
-  const order = ["sm:order-2", "sm:order-1", "sm:order-3"][index];
-  const lift = ["sm:pb-10", "sm:pb-4", "sm:pb-2"][index];
+  // Top three are set larger. No medals: the rank numeral already says it, and the emoji
+  // rendered differently on every platform.
+  const lead = house.rank <= 3;
+  const pct = Math.round((house.participationRate ?? 0) * 100);
 
   return (
-    <Link
-      to={`/houses/${house.houseId}`}
-      className={`group animate-fade-up rounded-2xl p-5 text-white shadow-lift transition hover:-translate-y-1 ${order} ${lift}`}
-      style={{ backgroundImage: houseGradient(house.name), animationDelay: `${index * 90}ms` }}
+    <li
+      className="animate-fade-up border-b border-ink-200"
+      style={{ animationDelay: `${index * 45}ms` }}
     >
-      <div className="flex items-start justify-between">
-        <span className="text-3xl" aria-hidden="true">
-          {MEDALS[index]}
-        </span>
-        <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">
-          #{house.rank}
-        </span>
-      </div>
-      <p className="mt-3 text-lg font-bold leading-tight group-hover:underline">{house.name}</p>
-      <p className="mt-0.5 text-sm text-white/70 tabular-nums">${house.total.toFixed(2)} raised</p>
-      <div className="mt-3 flex items-center gap-3 text-xs font-medium text-white/80">
-        <span>{Math.round(house.participationRate * 100)}% active</span>
-        <span aria-hidden="true">·</span>
-        <span>🔥 {house.avgStreak.toFixed(1)} avg</span>
-      </div>
-    </Link>
+      <Link
+        to={`/houses/${house.houseId}`}
+        className="group block py-4 transition hover:bg-ink-50/70"
+      >
+        <div className="grid grid-cols-[2.75rem_1fr] items-center gap-4 sm:grid-cols-[2.75rem_1fr_6rem_7rem_5rem]">
+          <span
+            className={`font-display tabular-nums leading-none ${
+              lead ? "text-2xl text-ink-900" : "text-base text-ink-500"
+            }`}
+          >
+            {String(house.rank).padStart(2, "0")}
+          </span>
+
+          <span className="flex min-w-0 items-center gap-3">
+            <span
+              className={`truncate font-display font-medium text-ink-900 ${
+                lead ? "text-xl sm:text-2xl" : "text-lg"
+              }`}
+            >
+              {house.name}
+            </span>
+            <span
+              aria-hidden="true"
+              className="h-1 w-8 shrink-0 rounded-full transition-all duration-300 group-hover:w-14"
+              style={{ background: theme.accent }}
+            />
+          </span>
+
+          <span className="hidden text-right text-sm tabular-nums text-ink-600 sm:block">
+            ${house.total.toFixed(2)}
+          </span>
+          <span className="hidden sm:block">
+            <ParticipationBar rate={house.participationRate} accent={theme.accent} />
+          </span>
+          <span className="hidden text-right text-sm tabular-nums text-ink-600 sm:block">
+            {house.avgStreak.toFixed(1)}
+          </span>
+        </div>
+
+        {/* Narrow screens can't hold five columns, so the figures reflow onto one line. Only
+            ever one of the two is rendered, so nothing is announced twice. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 pl-[3.75rem] text-xs tabular-nums text-ink-500 sm:hidden">
+          <span>${house.total.toFixed(2)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{pct}% active</span>
+          <span aria-hidden="true">·</span>
+          <span>{house.avgStreak.toFixed(1)} avg streak</span>
+        </div>
+      </Link>
+    </li>
   );
 }
 
@@ -229,8 +214,8 @@ function IndividualLeaderboard() {
   // than firing a request we know will 401.
   if (!authLoading && !user) {
     return (
-      <Card className="mt-5">
-        <EmptyState icon="🔒" title="Members only">
+      <Card className="mt-6">
+        <EmptyState title="Members only">
           Individual rankings name people, so they're only visible once you{" "}
           <TextLink to="/login">log in</TextLink>.
         </EmptyState>
@@ -240,7 +225,7 @@ function IndividualLeaderboard() {
 
   return (
     <div>
-      <p className="text-sm text-ink-500">
+      <p className="text-base leading-relaxed text-ink-600">
         Ranked by personal streak, independent of how their House is doing. Dollar amounts stay
         private.
       </p>
@@ -250,22 +235,22 @@ function IndividualLeaderboard() {
           {error}
         </Alert>
       ) : loading ? (
-        <SkeletonRows rows={6} className="mt-5" />
+        <SkeletonRows rows={6} className="mt-6" />
       ) : leaderboard.length === 0 ? (
-        <Card className="mt-5">
-          <EmptyState icon="🌱" title="No streaks yet">
+        <Card className="mt-6">
+          <EmptyState title="No streaks yet">
             Once members start logging weekly donations, they'll show up here.
           </EmptyState>
         </Card>
       ) : (
-        <div className="mt-5 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-card">
+        <div className="mt-6">
           <table className="w-full text-sm">
-            <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
+            <thead className="border-b-2 border-ink-900 text-left text-[11px] uppercase tracking-[0.14em] text-ink-500">
               <tr>
-                <th className="px-4 py-3 font-semibold">#</th>
-                <th className="px-4 py-3 font-semibold">Member</th>
-                <th className="px-4 py-3 font-semibold">House</th>
-                <th className="px-4 py-3 text-right font-semibold">Streak</th>
+                <th className="py-2 pr-4 font-semibold">#</th>
+                <th className="py-2 pr-4 font-semibold">Member</th>
+                <th className="py-2 pr-4 font-semibold">House</th>
+                <th className="py-2 text-right font-semibold">Streak</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-200">
@@ -275,38 +260,38 @@ function IndividualLeaderboard() {
                 return (
                   <tr
                     key={row.userId}
-                    className="transition hover:bg-ink-50/60"
+                    className="transition hover:bg-ink-50/70"
                     style={isMe ? { background: houseTint(row.houseName, 0.08) } : undefined}
                   >
-                    <td className="px-4 py-3 font-bold tabular-nums text-ink-400">
-                      {row.rank <= 3 ? (
-                        <span aria-label={`Rank ${row.rank}`}>{MEDALS[row.rank - 1]}</span>
-                      ) : (
-                        row.rank
-                      )}
+                    <td
+                      className={`py-3 pr-4 font-display tabular-nums ${
+                        row.rank <= 3 ? "text-xl text-ink-900" : "text-base text-ink-500"
+                      }`}
+                    >
+                      {String(row.rank).padStart(2, "0")}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="py-3 pr-4">
                       <Link
                         to={`/profile/${row.userId}`}
-                        className="font-medium text-ink-800 hover:text-brand-700"
+                        className="font-medium text-ink-900 underline decoration-ink-300 decoration-1 underline-offset-[3px] transition hover:decoration-ink-900"
                       >
                         {row.name}
                       </Link>
                       {isMe && (
-                        <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                        <span className="ml-2 rounded-sm bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-700">
                           You
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="py-3 pr-4">
                       {row.houseId ? (
                         <Link
                           to={`/houses/${row.houseId}`}
-                          className="inline-flex items-center gap-2 text-ink-600 hover:text-brand-700"
+                          className="inline-flex items-center gap-2.5 text-ink-600 transition hover:text-ink-900"
                         >
                           <span
                             aria-hidden="true"
-                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            className="h-1 w-6 shrink-0 rounded-full"
                             style={{ background: theme.accent }}
                           />
                           {row.houseName}
@@ -315,7 +300,7 @@ function IndividualLeaderboard() {
                         <span className="text-ink-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="py-3 text-right">
                       <StreakBadge weeks={row.streak} />
                     </td>
                   </tr>

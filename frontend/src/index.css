@@ -8,14 +8,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Paper white, no tinted washes. The old radial gradients were there to stop full-page
+     views looking flat, but the editorial layout uses ink-50 section bands and hairline
+     rules for that instead, and the washes fought with them. */
   body {
-    @apply bg-ink-50 text-ink-800 font-sans antialiased;
-    /* Two very soft brand-tinted washes so full-page views aren't flat grey. Fixed so they
-       don't slide around while scrolling long leaderboards. */
-    background-image:
-      radial-gradient(60rem 40rem at 12% -10%, rgb(7 120 212 / 0.07), transparent 60%),
-      radial-gradient(50rem 34rem at 92% 4%, rgb(13 148 136 / 0.06), transparent 60%);
-    background-attachment: fixed;
+    @apply bg-white text-ink-800 font-sans antialiased;
   }
 
   /* Consistent focus ring everywhere instead of the browser default, which disappears
@@ -43,16 +40,21 @@
 }
 
 @layer components {
+  /* Squared and flat. A hairline rule is the only edge - the old rounded-2xl-plus-shadow
+     made every panel float, which is the look the homepage moved away from. */
   .card {
-    @apply rounded-2xl border border-ink-200/70 bg-white shadow-card;
+    @apply border border-ink-200 bg-white;
   }
 
+  /* Interactive panels darken their rule instead of lifting off the page. */
   .card-interactive {
-    @apply card transition duration-200 hover:-translate-y-0.5 hover:shadow-card-hover;
+    @apply card transition duration-200 hover:border-ink-400;
   }
 
+  /* Controls keep a small radius. Squaring inputs off entirely reads as a wireframe, and
+     the homepage's own buttons are rounded, so this stays consistent with what's there. */
   .input {
-    @apply w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900
+    @apply w-full rounded-md border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900
            placeholder:text-ink-400 transition
            focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10;
   }
@@ -61,13 +63,15 @@
     @apply border-red-400 focus:border-red-500 focus:ring-red-500/10;
   }
 
+  /* The same small-caps marker the homepage uses for section labels, so every form label
+     is in the page's voice rather than plain sentence-case bold. */
   .label {
-    @apply mb-1.5 block text-sm font-medium text-ink-700;
+    @apply mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-ink-500;
   }
 
   /* Used for the loading placeholder rows on tables and stat cards. */
   .skeleton {
-    @apply relative overflow-hidden rounded-lg bg-ink-200/70;
+    @apply relative overflow-hidden rounded-sm bg-ink-200/70;
   }
 
   .skeleton::after {
