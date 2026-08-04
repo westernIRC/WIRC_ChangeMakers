@@ -26,33 +26,36 @@ export default function NavBar() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-200/70 bg-white/85 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link to="/" className="group flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-extrabold text-white shadow-sm transition group-hover:scale-105">
-            W
-          </span>
-          <span className="text-[15px] font-bold tracking-tight text-ink-900">
+        {/* Wordmark, not a logo tile. The gradient rounded square was the most generic thing
+            on the page; a serif wordmark with the org's initials set beside it reads as a
+            masthead and matches the homepage. */}
+        <Link to="/" className="group flex items-baseline gap-2.5">
+          <span className="font-display text-xl font-medium tracking-[-0.01em] text-ink-900 transition group-hover:text-brand-700">
             Changemakers
+          </span>
+          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 sm:inline">
+            WIRC
           </span>
         </Link>
 
         {/* desktop */}
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-7 md:flex">
           {links.map((l) => (
             <NavItem key={l.to} to={l.to}>
               {l.label}
             </NavItem>
           ))}
-          <span className="mx-2 h-5 w-px bg-ink-200" />
+          <span className="h-5 w-px bg-ink-200" />
           {user ? (
             <div className="flex items-center gap-3">
               <Link
                 to="/dashboard"
-                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-ink-100"
+                className="group flex items-center gap-2.5 py-1 transition"
               >
                 <Avatar name={user.name} />
-                <span className="max-w-[9rem] truncate text-sm font-medium text-ink-700">
+                <span className="max-w-[9rem] truncate text-sm font-medium text-ink-700 transition group-hover:text-ink-900">
                   {user.name}
                 </span>
               </Link>
@@ -72,13 +75,14 @@ export default function NavBar() {
           )}
         </div>
 
-        {/* mobile toggle */}
+        {/* mobile toggle. p-3 around a 20px icon gives a 44x44 target; -mr-2 keeps it
+            optically flush with the container edge. */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={open ? "Close menu" : "Open menu"}
-          className="rounded-lg p-2 text-ink-600 transition hover:bg-ink-100 md:hidden"
+          className="-mr-2 rounded-lg p-3 text-ink-600 transition hover:bg-ink-100 md:hidden"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             {open ? (
@@ -101,7 +105,7 @@ export default function NavBar() {
       </nav>
 
       {open && (
-        <div className="animate-fade-in border-t border-ink-200/70 bg-white px-4 py-3 md:hidden">
+        <div className="animate-fade-in border-t border-ink-200 bg-white px-4 py-3 md:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) => (
               <NavItem key={l.to} to={l.to} block>
@@ -137,16 +141,28 @@ export default function NavBar() {
   );
 }
 
+// Desktop items are full-height so the active rule lands flush on the header's bottom border,
+// the way a masthead's section nav does. Mobile can't do that in a stacked list, so it marks
+// the active item with a rule down the left instead. Both use a transparent border when
+// inactive so nothing shifts on selection.
 function NavItem({ to, children, block = false }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        [
-          "rounded-lg px-3 py-2 text-sm font-medium transition",
-          block ? "block" : "",
-          isActive ? "bg-brand-50 text-brand-700" : "text-ink-600 hover:bg-ink-100 hover:text-ink-900",
-        ].join(" ")
+        block
+          ? [
+              "block border-l-2 py-2 pl-3 text-sm font-medium transition",
+              isActive
+                ? "border-brand-600 text-brand-700"
+                : "border-transparent text-ink-600 hover:border-ink-300 hover:text-ink-900",
+            ].join(" ")
+          : [
+              "flex h-16 items-center border-b-2 text-sm font-medium transition",
+              isActive
+                ? "border-brand-600 text-ink-900"
+                : "border-transparent text-ink-600 hover:border-ink-300 hover:text-ink-900",
+            ].join(" ")
       }
     >
       {children}
@@ -163,7 +179,9 @@ function Avatar({ name }) {
     .toUpperCase();
 
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-400 to-brand-600 text-[11px] font-bold text-white">
+    // Flat, not a gradient. brand-700 rather than the old brand-400 top stop, which put white
+    // text on a light blue.
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-[11px] font-semibold tracking-wide text-white">
       {initials}
     </span>
   );
