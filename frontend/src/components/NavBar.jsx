@@ -29,14 +29,12 @@ export default function NavBar() {
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
         {/* Wordmark, not a logo tile. The gradient rounded square was the most generic thing
-            on the page; a serif wordmark with the org's initials set beside it reads as a
-            masthead and matches the homepage. */}
-        <Link to="/" className="group flex items-baseline gap-2.5">
-          <span className="font-display text-xl font-medium tracking-[-0.01em] text-ink-900 transition group-hover:text-brand-700">
+            on the page; a serif wordmark in the brand blue reads as a masthead and matches
+            the homepage. brand-600 rather than IRC's brand-500, which only clears 4.5:1 on
+            pure white by 0.02 and would fail over the ink-50 sections. */}
+        <Link to="/" className="group flex items-baseline">
+          <span className="font-display text-xl font-medium tracking-[-0.01em] text-brand-600 transition group-hover:text-brand-800">
             Changemakers
-          </span>
-          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-700 sm:inline">
-            WIRC
           </span>
         </Link>
 
