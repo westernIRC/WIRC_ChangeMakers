@@ -28,12 +28,16 @@ export default function NavBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur-md">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        {/* Wordmark, not a logo tile. The gradient rounded square was the most generic thing
-            on the page; a serif wordmark in the brand blue reads as a masthead and matches
-            the homepage. brand-600 rather than IRC's brand-500, which only clears 4.5:1 on
-            pure white by 0.02 and would fail over the ink-50 sections. */}
+        {/* Wordmark, not a logo tile. The gradient rounded square was the most generic thing on
+            the page; a serif wordmark reads as a masthead and matches the homepage.
+
+            It sits at the nav's own ink-600 rather than in brand blue, so the header reads as
+            one row of type with size and serif doing the hierarchy instead of colour, and the
+            blue is left to mean "interactive" - which is what the hover then says. brand-600
+            rather than IRC's brand-500, which only clears 4.5:1 on pure white by 0.02 and would
+            fail where the translucent header sits over the ink-50 sections. */}
         <Link to="/" className="group flex items-baseline">
-          <span className="font-display text-xl font-medium tracking-[-0.01em] text-brand-600 transition group-hover:text-brand-800">
+          <span className="font-display text-xl font-medium tracking-[-0.01em] text-ink-600 transition group-hover:text-brand-600">
             Changemakers
           </span>
         </Link>
