@@ -83,8 +83,8 @@ export function CardHeader({ title, subtitle, action, className }) {
   return (
     <div className={cx("flex items-start justify-between gap-4", className)}>
       <div>
-        <h2 className="font-semibold text-ink-900">{title}</h2>
-        {subtitle && <p className="mt-0.5 text-sm text-ink-500">{subtitle}</p>}
+        <h2 className="font-display text-xl font-medium leading-snug text-ink-900">{title}</h2>
+        {subtitle && <p className="mt-1 text-sm leading-relaxed text-ink-600">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -155,11 +155,12 @@ export function Checkbox({ label, checked, onChange, ...rest }) {
 
 /* ------------------------------------------------------------------ signals */
 
+// Hairline on three sides, a solid 2px marker on the left.
 const ALERT_TONES = {
-  error: "bg-red-50 text-red-800 border-red-200",
-  success: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  info: "bg-brand-50 text-brand-800 border-brand-200",
-  neutral: "bg-ink-100 text-ink-700 border-ink-200",
+  error: "bg-red-50 text-red-800 border-red-200 border-l-red-600",
+  success: "bg-emerald-50 text-emerald-800 border-emerald-200 border-l-emerald-600",
+  info: "bg-brand-50 text-brand-800 border-brand-200 border-l-brand-600",
+  neutral: "bg-ink-100 text-ink-700 border-ink-200 border-l-ink-500",
 };
 
 export function Alert({ tone = "error", children, className }) {
@@ -168,7 +169,9 @@ export function Alert({ tone = "error", children, className }) {
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cx(
-        "animate-fade-in rounded-xl border px-3.5 py-3 text-sm",
+        // Left rule rather than a full rounded box: it reads as a margin note, and it lines
+        // up with the hairlines everywhere else.
+        "animate-fade-in border-y border-r border-l-2 px-3.5 py-3 text-sm",
         ALERT_TONES[tone] || ALERT_TONES.neutral,
         className
       )}
@@ -180,16 +183,17 @@ export function Alert({ tone = "error", children, className }) {
 
 export function Badge({ tone = "neutral", className, children, style }) {
   const tones = {
-    neutral: "bg-ink-100 text-ink-700",
+    neutral: "bg-ink-100 text-ink-600",
     brand: "bg-brand-50 text-brand-700",
-    flame: "bg-orange-50 text-orange-700",
+    flame: "bg-brand-50 text-brand-700",
     success: "bg-emerald-50 text-emerald-700",
   };
   return (
     <span
       style={style}
       className={cx(
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
+        // Small-caps chip rather than a rounded pill, matching the page's section markers.
+        "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.1em]",
         !style && (tones[tone] || tones.neutral),
         className
       )}
@@ -213,27 +217,32 @@ export function Spinner({ className = "h-5 w-5" }) {
   );
 }
 
+// A figure under a rule, not a boxed card. Same information, and a row of these reads as one
+// table of numbers instead of three floating tiles.
 export function Stat({ label, value, hint, accent, className }) {
   return (
-    <div className={cx("card p-4", className)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-ink-500">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold tabular-nums text-ink-900" style={{ color: accent }}>
+    <div className={cx("border-t-2 border-ink-900 pt-3", className)}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-500">{label}</p>
+      <p
+        className="mt-2 font-display text-3xl font-medium tabular-nums leading-none text-ink-900"
+        style={{ color: accent }}
+      >
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-xs text-ink-500">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-ink-500">{hint}</p>}
     </div>
   );
 }
 
-export function EmptyState({ icon = "✨", title, children, action }) {
+// No emoji-in-a-circle, and left-aligned rather than centred - a centred column of text with a
+// decorative glyph on top is the single most generic empty state there is. The `icon` prop is
+// gone; callers were passing 🌱 / 👥 / 🏁, which the rest of the design no longer uses.
+export function EmptyState({ title, children, action }) {
   return (
-    <div className="flex flex-col items-center px-6 py-10 text-center">
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ink-100 text-2xl">
-        {icon}
-      </div>
-      <p className="font-semibold text-ink-800">{title}</p>
-      {children && <p className="mt-1 max-w-sm text-sm text-ink-500">{children}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="px-6 py-9">
+      <p className="font-display text-xl font-medium text-ink-900">{title}</p>
+      {children && <p className="mt-1.5 max-w-md text-sm leading-relaxed text-ink-600">{children}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
@@ -251,25 +260,43 @@ export function SkeletonRows({ rows = 4, className }) {
 
 /* --------------------------------------------------------------- navigation */
 
+// The homepage masthead in page form: small-caps marker, serif headline, and a rule closing
+// the block off from the content below it.
 export function PageHeader({ eyebrow, title, subtitle, action, className }) {
   return (
-    <div className={cx("mb-6 flex flex-wrap items-end justify-between gap-4", className)}>
+    <div
+      className={cx(
+        "mb-7 flex flex-wrap items-end justify-between gap-x-8 gap-y-4 border-b border-ink-200 pb-6",
+        className
+      )}
+    >
       <div className="animate-fade-up">
         {eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">{eyebrow}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+            {eyebrow}
+          </p>
         )}
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">{title}</h1>
-        {subtitle && <p className="mt-1.5 max-w-2xl text-sm text-ink-500">{subtitle}</p>}
+        <h1 className="mt-2.5 font-display text-4xl font-medium tracking-[-0.015em] text-ink-900 sm:text-5xl">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-600">{subtitle}</p>
+        )}
       </div>
       {action}
     </div>
   );
 }
 
-/** Pill filter row. Scrolls horizontally rather than wrapping on narrow screens. */
+/**
+ * Underlined tab row, the same treatment as the header's nav. Still scrolls horizontally
+ * rather than wrapping on narrow screens.
+ */
 export function SegmentedControl({ options, value, onChange, className }) {
   return (
-    <div className={cx("no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 py-1", className)}>
+    <div
+      className={cx("no-scrollbar flex gap-7 overflow-x-auto border-b border-ink-200", className)}
+    >
       {options.map((opt) => {
         const active = opt.value === value;
         return (
@@ -279,10 +306,12 @@ export function SegmentedControl({ options, value, onChange, className }) {
             onClick={() => onChange(opt.value)}
             aria-pressed={active}
             className={cx(
-              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
+              // -mb-px pulls the tab's own rule onto the container's, so the active one reads
+              // as a single continuous line rather than two stacked borders.
+              "-mb-px shrink-0 border-b-2 pb-2.5 text-sm font-medium transition",
               active
-                ? "bg-brand-600 text-white shadow-sm"
-                : "bg-white text-ink-600 ring-1 ring-inset ring-ink-200 hover:bg-ink-50 hover:text-ink-900"
+                ? "border-brand-600 text-ink-900"
+                : "border-transparent text-ink-600 hover:border-ink-300 hover:text-ink-900"
             )}
           >
             {opt.label}
@@ -293,24 +322,41 @@ export function SegmentedControl({ options, value, onChange, className }) {
   );
 }
 
-/** Shared shell for login / signup / forgot / reset so they line up pixel for pixel. */
+/**
+ * Shared shell for login / signup / forgot / reset so they line up pixel for pixel.
+ * Left-aligned rather than centred: a centred heading over a centred card is exactly the
+ * composition the homepage moved away from.
+ */
 export function AuthLayout({ title, subtitle, children, footer, wide = false }) {
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center px-4 py-10">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center px-4 py-12">
       <div className={cx("w-full animate-fade-up", wide && "sm:max-w-lg")}>
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-ink-900">{title}</h1>
-          {subtitle && <p className="mt-2 text-sm text-ink-500">{subtitle}</p>}
+        <div className="mb-7 border-b border-ink-200 pb-6">
+          <h1 className="font-display text-4xl font-medium tracking-[-0.015em] text-ink-900">
+            {title}
+          </h1>
+          {subtitle && (
+            <p className="mt-3 text-base leading-relaxed text-ink-600">{subtitle}</p>
+          )}
         </div>
-        <Card className="p-6 sm:p-7">{children}</Card>
-        {footer && <div className="mt-5 text-center text-sm text-ink-500">{footer}</div>}
+        {/* No card box. The rule above already separates the heading from the fields, and a
+            bordered panel inside a narrow column just draws a second frame around it. */}
+        <div>{children}</div>
+        {footer && (
+          <div className="mt-7 border-t border-ink-200 pt-5 text-sm text-ink-600">{footer}</div>
+        )}
       </div>
     </div>
   );
 }
 
 export function TextLink({ to, href, className, children, ...rest }) {
-  const classes = cx("font-medium text-brand-600 transition hover:text-brand-700 hover:underline", className);
+  // Underlined by default with the rule set below the baseline, the way body copy links are
+  // set in print. Reveal-on-hover underlines make links invisible until you find them.
+  const classes = cx(
+    "font-medium text-brand-700 underline decoration-brand-300 decoration-1 underline-offset-[3px] transition hover:decoration-brand-700",
+    className
+  );
   if (href) {
     return (
       <a href={href} className={classes} {...rest}>
@@ -325,12 +371,14 @@ export function TextLink({ to, href, className, children, ...rest }) {
   );
 }
 
-/** Flame chip. Goes grey at zero so an empty streak doesn't look like an achievement. */
+/**
+ * Streak chip. Stays neutral at zero so an empty streak doesn't look like an achievement.
+ * The flame emoji is gone; the number carries it, and nothing else in the design uses emoji.
+ */
 export function StreakBadge({ weeks = 0, className }) {
   const lit = weeks > 0;
   return (
-    <Badge tone={lit ? "flame" : "neutral"} className={className}>
-      <span className={lit ? "" : "grayscale"}>🔥</span>
+    <Badge tone={lit ? "brand" : "neutral"} className={cx("tabular-nums", className)}>
       {weeks} week{weeks === 1 ? "" : "s"}
     </Badge>
   );

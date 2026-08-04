@@ -10,6 +10,7 @@ import {
   EmptyState,
   Field,
   PageHeader,
+  SegmentedControl,
   SkeletonRows,
   StreakBadge,
 } from "../components/ui.jsx";
@@ -32,28 +33,19 @@ export default function AdminPage() {
   const tabs = isOverall ? TABS_OVERALL : TABS_VP;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl px-4 py-10">
       <PageHeader
         eyebrow={isOverall ? "Overall admin" : "House admin"}
         title="Admin"
         subtitle={isOverall ? "Full access across all Houses." : "Scoped to your own House."}
       />
 
-      <div className="mb-5 inline-flex flex-wrap rounded-xl bg-ink-100 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            aria-pressed={tab === t.key}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${
-              tab === t.key ? "bg-white text-ink-900 shadow-sm" : "text-ink-500 hover:text-ink-800"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={tabs.map((t) => ({ value: t.key, label: t.label }))}
+        value={tab}
+        onChange={setTab}
+        className="mb-7"
+      />
 
       {tab === "members" && <MembersPanel user={user} isOverall={isOverall} />}
       {tab === "audit" && <AuditLogPanel />}
@@ -163,7 +155,7 @@ function MembersPanel({ user, isOverall }) {
         <SkeletonRows rows={4} />
       ) : members.length === 0 ? (
         <Card>
-          <EmptyState icon="👥" title="No members in this House yet">
+          <EmptyState title="No members in this House yet">
             New signups are assigned automatically as they register.
           </EmptyState>
         </Card>
@@ -173,9 +165,11 @@ function MembersPanel({ user, isOverall }) {
             <Card key={m.id} className="p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-2 font-semibold text-ink-900">
-                    <span className="truncate">{m.name}</span>
-                    <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
+                  <p className="flex items-center gap-2.5">
+                    <span className="truncate font-display text-lg font-medium text-ink-900">
+                      {m.name}
+                    </span>
+                    <span className="rounded-sm bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-600">
                       {m.role}
                     </span>
                   </p>
@@ -185,7 +179,7 @@ function MembersPanel({ user, isOverall }) {
               </div>
 
               {isOverall && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-ink-50 p-3">
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-l-2 border-ink-200 bg-ink-50 py-3 pl-3 pr-3">
                   <label htmlFor={`reassign-${m.id}`} className="text-xs font-medium text-ink-600">
                     Reassign House
                   </label>
@@ -225,9 +219,9 @@ function MembersPanel({ user, isOverall }) {
               )}
 
               {m.weeklyEntries?.length > 0 && (
-                <div className="mt-3 overflow-hidden rounded-xl border border-ink-200">
+                <div className="mt-4 border-t border-ink-200">
                   <table className="w-full text-sm">
-                    <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
+                    <thead className="border-b border-ink-200 text-left text-[11px] uppercase tracking-[0.14em] text-ink-500">
                       <tr>
                         <th className="px-3 py-2 font-semibold">Week of</th>
                         <th className="px-3 py-2 font-semibold">Amount</th>
@@ -314,7 +308,7 @@ function AuditLogPanel() {
   if (logs.length === 0) {
     return (
       <Card>
-        <EmptyState icon="📋" title="No edits logged yet">
+        <EmptyState title="No edits logged yet">
           Every admin change to a submitted amount is recorded here.
         </EmptyState>
       </Card>
@@ -322,35 +316,35 @@ function AuditLogPanel() {
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-ink-200 bg-white shadow-card">
+    <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
+        <thead className="border-b-2 border-ink-900 text-left text-[11px] uppercase tracking-[0.14em] text-ink-500">
           <tr>
-            <th className="px-4 py-3 font-semibold">Member</th>
-            <th className="px-4 py-3 font-semibold">Week of</th>
-            <th className="px-4 py-3 font-semibold">Previous</th>
-            <th className="px-4 py-3 font-semibold">New</th>
-            <th className="px-4 py-3 font-semibold">Edited by</th>
-            <th className="px-4 py-3 font-semibold">When</th>
+            <th className="py-3 pr-4 font-semibold">Member</th>
+            <th className="py-3 pr-4 font-semibold">Week of</th>
+            <th className="py-3 pr-4 font-semibold">Previous</th>
+            <th className="py-3 pr-4 font-semibold">New</th>
+            <th className="py-3 pr-4 font-semibold">Edited by</th>
+            <th className="py-3 pr-4 font-semibold">When</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-ink-200">
           {logs.map((log) => (
             <tr key={log.id} className="transition hover:bg-ink-50/60">
-              <td className="whitespace-nowrap px-4 py-3 font-medium text-ink-800">
+              <td className="whitespace-nowrap py-3 pr-4 font-medium text-ink-800">
                 {log.weeklyEntry.user.name}
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-ink-600">
+              <td className="whitespace-nowrap py-3 pr-4 text-ink-600">
                 {formatWeekStart(log.weeklyEntry.weekStartDate)}
               </td>
-              <td className="px-4 py-3 tabular-nums text-ink-500 line-through">
+              <td className="py-3 pr-4 tabular-nums text-ink-500 line-through">
                 ${Number(log.previousAmount).toFixed(2)}
               </td>
-              <td className="px-4 py-3 font-semibold tabular-nums text-ink-900">
+              <td className="py-3 pr-4 font-semibold tabular-nums text-ink-900">
                 ${Number(log.newAmount).toFixed(2)}
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-ink-600">{log.editedBy.name}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-ink-500">
+              <td className="whitespace-nowrap py-3 pr-4 text-ink-600">{log.editedBy.name}</td>
+              <td className="whitespace-nowrap py-3 pr-4 text-ink-500">
                 {new Date(log.editedAt).toLocaleString()}
               </td>
             </tr>
@@ -444,7 +438,7 @@ function HousesPanel() {
           {houses.map((h) => (
             <li key={h.houseId} className="flex items-center justify-between gap-3 px-5 py-3.5">
               <span className="min-w-0">
-                <span className="font-medium text-ink-800">{h.name}</span>{" "}
+                <span className="font-display text-lg font-medium text-ink-900">{h.name}</span>{" "}
                 <span className="text-xs text-ink-500">({h.portfolioName})</span>
               </span>
               <Button
@@ -543,7 +537,7 @@ function SettingsPanel() {
         </div>
 
         {settings.rankingMethod === "blended" && (
-          <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
+          <div className="border-l-2 border-ink-200 bg-ink-50 p-4">
             <div className="grid grid-cols-2 gap-3">
               <Field
                 label="Participation weight"

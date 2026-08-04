@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
-import { houseTheme, houseGradient, KNOWN_PORTFOLIOS } from "../utils/houseTheme";
+import { houseTheme, KNOWN_PORTFOLIOS } from "../utils/houseTheme";
 import { Button, Spinner } from "./ui";
 
 // Full-screen "you've been sorted" moment shown once, right after signup.
@@ -164,7 +164,7 @@ function SpinningCard({ name, tick }) {
         {/* key forces a remount each tick so the slide-through animation replays */}
         <span
           key={tick}
-          className="animate-reel-spin bg-gradient-to-b from-white to-white/60 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+          className="animate-reel-spin font-display text-4xl font-medium tracking-[-0.01em] text-white sm:text-5xl"
         >
           {name}
         </span>
@@ -201,24 +201,28 @@ function RevealedCard({ house, theme, onDone, ctaRef }) {
         {/* Two offset pulses read as a single expanding ripple. */}
         <span
           aria-hidden="true"
-          className="absolute inset-0 animate-ring-pulse rounded-3xl"
+          className="absolute inset-0 animate-ring-pulse"
           style={{ background: theme.accent }}
         />
         <span
           aria-hidden="true"
-          className="absolute inset-0 animate-ring-pulse rounded-3xl"
+          className="absolute inset-0 animate-ring-pulse"
           style={{ background: theme.accent, animationDelay: "1.2s" }}
         />
 
-        <div
-          className="relative animate-pop-in rounded-3xl px-9 py-8 shadow-glow"
-          style={{ backgroundImage: houseGradient(house) }}
-        >
-          <div className="animate-float text-5xl drop-shadow-sm">{theme.emoji}</div>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-4xl">
+        {/* Squared card, flat House colour, no emoji. The reveal keeps its confetti and its
+            ripple - it's the one deliberate celebration in the app - but the card itself now
+            speaks the same language as the rest of the site. */}
+        <div className="relative animate-pop-in bg-white px-10 py-9">
+          <span
+            aria-hidden="true"
+            className="mx-auto block h-1.5 w-20 rounded-full"
+            style={{ background: theme.accent }}
+          />
+          <h1 className="mt-6 font-display text-3xl font-medium tracking-[-0.015em] text-ink-900 sm:text-4xl">
             {house.name}
           </h1>
-          <p className="mt-1 text-sm font-medium text-white/75">
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500">
             {house.portfolioName} portfolio
           </p>
         </div>
@@ -246,9 +250,10 @@ function RevealedCard({ house, theme, onDone, ctaRef }) {
 function FallbackCard({ onDone, ctaRef }) {
   return (
     <div className="flex flex-col items-center text-center animate-scale-in">
-      <div className="text-5xl">🎉</div>
-      <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white">You're in!</h1>
-      <p className="mt-2 max-w-xs text-sm text-white/60">
+      <h1 className="font-display text-4xl font-medium tracking-[-0.015em] text-white">
+        You're in!
+      </h1>
+      <p className="mt-3 max-w-xs text-sm text-white/60">
         Your account is ready. We couldn't load your House just now, but it'll be on your dashboard.
       </p>
       <div className="mt-7">

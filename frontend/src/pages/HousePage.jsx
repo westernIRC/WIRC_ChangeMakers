@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext.jsx";
-import { houseTheme, houseGradient } from "../utils/houseTheme";
+import { houseTheme } from "../utils/houseTheme";
 import {
   Alert,
   Button,
@@ -82,8 +82,8 @@ export default function HousePage() {
   if (!house) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <div className="skeleton h-36 rounded-2xl" />
-        <SkeletonRows rows={3} className="mt-4" />
+        <div className="skeleton h-32" />
+        <SkeletonRows rows={3} className="mt-6" />
       </div>
     );
   }
@@ -91,30 +91,35 @@ export default function HousePage() {
   const theme = houseTheme(house);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      {/* ------------------------------------------------------------------ banner */}
-      <div
-        className="animate-fade-up overflow-hidden rounded-2xl p-6 shadow-lift sm:p-8"
-        style={{ backgroundImage: houseGradient(house) }}
-      >
-        <div className="flex items-start gap-4">
-          <span className="text-4xl drop-shadow-sm" aria-hidden="true">
-            {theme.emoji}
-          </span>
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* ---------------------------------------------------------------- masthead */}
+      {/* The House's colour is a full-width rule over the name rather than a gradient slab
+          behind it. Same identity, and the name stays black on white where it's readable. */}
+      <div className="animate-fade-up border-b border-ink-200 pb-6">
+        <span
+          aria-hidden="true"
+          className="block h-1.5 w-24 rounded-full"
+          style={{ background: theme.accent }}
+        />
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            <h1 className="font-display text-4xl font-medium tracking-[-0.015em] text-ink-900 sm:text-5xl">
               {house.name}
             </h1>
-            <p className="mt-1 text-sm text-white/70">{house.portfolioName} portfolio</p>
+            <p className="mt-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">
+              {house.portfolioName} portfolio
+            </p>
           </div>
-          <span className="ml-auto shrink-0 rounded-full bg-white/20 px-3 py-1.5 text-sm font-bold text-white backdrop-blur-sm">
+          <p className="shrink-0 font-display text-3xl font-medium tabular-nums text-ink-900">
             #{house.rank}
-          </span>
+          </p>
         </div>
       </div>
 
       {/* ---------------------------------------------------------------- controls */}
-      <div className="no-scrollbar -mx-1 mt-5 flex gap-1.5 overflow-x-auto px-1 py-1">
+      {/* Kept bespoke rather than switched to SegmentedControl so the active tab can carry
+          this House's own colour. */}
+      <div className="no-scrollbar mt-7 flex gap-7 overflow-x-auto">
         {PERIODS.map((p) => {
           const active = p.value === period;
           return (
@@ -123,12 +128,12 @@ export default function HousePage() {
               type="button"
               onClick={() => setPeriod(p.value)}
               aria-pressed={active}
-              className="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition"
-              style={
+              className={`shrink-0 border-b-2 pb-2.5 text-sm font-medium transition ${
                 active
-                  ? { background: theme.accent, color: "#fff" }
-                  : { background: "#fff", color: "#4d5567", boxShadow: "inset 0 0 0 1px #e4e7ee" }
-              }
+                  ? "text-ink-900"
+                  : "border-transparent text-ink-600 hover:border-ink-300 hover:text-ink-900"
+              }`}
+              style={active ? { borderBottomColor: theme.accent } : undefined}
             >
               {p.label}
             </button>
@@ -136,7 +141,7 @@ export default function HousePage() {
         })}
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-8 grid grid-cols-3 gap-x-6">
         <Stat label="Total raised" value={`$${house.total.toFixed(2)}`} accent={theme.accent} />
         <Stat label="Overall rank" value={`#${house.rank}`} />
         <Stat
@@ -146,32 +151,28 @@ export default function HousePage() {
       </div>
 
       {/* ----------------------------------------------------------------- members */}
-      <Card className="mt-4 p-5 sm:p-6">
+      <Card className="mt-9 p-5 sm:p-6">
         <CardHeader
           title="Members"
           subtitle={`${house.members.length} member${house.members.length === 1 ? "" : "s"}`}
         />
-        <div className="mt-4">
+        <div className="mt-5">
           {house.members.length === 0 ? (
-            <EmptyState icon="👥" title="No members yet">
+            <EmptyState title="No members yet">
               New signups are assigned to Houses automatically.
             </EmptyState>
           ) : (
-            <ul className="divide-y divide-ink-200">
+            <ul className="divide-y divide-ink-200 border-t border-ink-200">
               {house.members.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                <li key={m.id} className="flex items-center justify-between gap-3 py-3">
+                  {/* The initials disc is gone. Every member here is in the same House, so
+                      tinting it by House said nothing, and white initials on the lighter
+                      accents (amber, teal, emerald) sat under 3:1. */}
                   <Link
                     to={`/profile/${m.id}`}
-                    className="flex min-w-0 items-center gap-3 font-medium text-ink-800 hover:text-brand-700"
+                    className="min-w-0 truncate font-medium text-ink-900 underline decoration-ink-300 decoration-1 underline-offset-[3px] transition hover:decoration-ink-900"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                      style={{ backgroundImage: houseGradient(house) }}
-                    >
-                      {(m.name || "?").charAt(0).toUpperCase()}
-                    </span>
-                    <span className="truncate">{m.name}</span>
+                    {m.name}
                   </Link>
                   <StreakBadge weeks={m.streak} />
                 </li>
@@ -183,7 +184,7 @@ export default function HousePage() {
 
       {/* ------------------------------------------------------------------- admin */}
       {canRename && (
-        <Card className="mt-4 p-5 sm:p-6">
+        <Card className="mt-6 p-5 sm:p-6">
           <CardHeader title="Edit House details" subtitle="Visible to everyone immediately." />
           <form onSubmit={handleRename} className="mt-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
