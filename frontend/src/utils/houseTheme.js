@@ -69,7 +69,7 @@ export function houseTint(house, alpha = 0.12) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-/** Every named portfolio, for the signup reveal's shuffle reel. */
+/** Every named portfolio, for the homepage's House list. */
 export const KNOWN_PORTFOLIOS = Object.keys(PALETTE).map(
   (k) => k.charAt(0).toUpperCase() + k.slice(1)
 );

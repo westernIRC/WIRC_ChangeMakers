@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
-import { houseTheme, KNOWN_PORTFOLIOS } from "../utils/houseTheme";
+import { houseTheme } from "../utils/houseTheme";
+import HouseNameParticles from "./HouseNameParticles.jsx";
 import { Button, Spinner } from "./ui";
 
 // Full-screen "you've been sorted" moment shown once, right after signup.
 //
-// The shuffle isn't just decoration: signup assigns a House server-side but only returns the
-// ID, so we have to fetch the House to learn its name. The reel runs while that request is in
-// flight, which turns unavoidable latency into the best part of the animation. The reveal
-// waits for whichever finishes last - the request or the minimum spin - so a fast connection
-// still gets the full build-up and a slow one never reveals an empty card.
+// The drift isn't just decoration: signup assigns a House server-side but only returns the ID,
+// so we have to fetch the House to learn its name. The particle field spreads while that request
+// is in flight, which turns unavoidable latency into the best part of the animation. The name
+// only resolves once whichever finishes last - the request or the minimum drift - is done, so a
+// fast connection still gets the full build-up and a slow one never resolves into an empty name.
 
-const MIN_SPIN_MS = 2200;
-const FIRST_INTERVAL = 70;
-const LAST_INTERVAL = 300;
-const CONFETTI_COUNT = 70;
+// Long enough for the ring to reach the square's edges and for the smoke to build. This is a
+// once-per-account moment, so it can take its time in a way a repeated animation could not.
+const MIN_DRIFT_MS = 6000;
 
 function prefersReducedMotion() {
   return (
@@ -28,7 +28,6 @@ export default function HouseReveal({ houseId, onDone }) {
   const [house, setHouse] = useState(null);
   const [failed, setFailed] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [tick, setTick] = useState(0);
   const ctaRef = useRef(null);
 
   // --- fetch the assigned House -------------------------------------------------------
@@ -47,29 +46,8 @@ export default function HouseReveal({ houseId, onDone }) {
     };
   }, [houseId]);
 
-  // --- the reel -----------------------------------------------------------------------
-  // Decelerating setTimeout chain rather than a fixed setInterval, so the names visibly slow
-  // down into the reveal instead of stopping dead.
-  const startedAt = useRef(Date.now());
-  useEffect(() => {
-    if (revealed || reduced) return undefined;
-
-    let timer;
-    const step = () => {
-      const elapsed = Date.now() - startedAt.current;
-      const progress = Math.min(elapsed / MIN_SPIN_MS, 1);
-      const eased = progress * progress; // slow at first, then a sharp ramp at the end
-      const delay = FIRST_INTERVAL + (LAST_INTERVAL - FIRST_INTERVAL) * eased;
-
-      setTick((t) => t + 1);
-      timer = setTimeout(step, delay);
-    };
-
-    timer = setTimeout(step, FIRST_INTERVAL);
-    return () => clearTimeout(timer);
-  }, [revealed, reduced]);
-
   // --- decide when to land ------------------------------------------------------------
+  const startedAt = useRef(Date.now());
   useEffect(() => {
     if (revealed) return undefined;
     if (!house && !failed) return undefined;
@@ -79,7 +57,7 @@ export default function HouseReveal({ houseId, onDone }) {
       return undefined;
     }
 
-    const remaining = Math.max(0, MIN_SPIN_MS - (Date.now() - startedAt.current));
+    const remaining = Math.max(0, MIN_DRIFT_MS - (Date.now() - startedAt.current));
     const timer = setTimeout(() => setRevealed(true), remaining);
     return () => clearTimeout(timer);
   }, [house, failed, revealed, reduced]);
@@ -99,147 +77,77 @@ export default function HouseReveal({ houseId, onDone }) {
   }, [onDone]);
 
   const theme = houseTheme(house);
-  const reelName = KNOWN_PORTFOLIOS[tick % KNOWN_PORTFOLIOS.length];
+  const landed = revealed && !failed && Boolean(house);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="House assignment"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden px-4 animate-fade-in"
-      style={{
-        background:
-          "radial-gradient(90rem 60rem at 50% -20%, #15325a 0%, #0b1a2e 45%, #060d18 100%)",
-      }}
+      className="fixed inset-0 z-50 flex animate-fade-in flex-col items-center justify-center overflow-hidden bg-[#080d16] px-4"
     >
-      {revealed && !failed && <Confetti theme={theme} />}
+      {/* The particles carry the name visually; this is what a screen reader gets. */}
+      <div aria-live="polite" className="sr-only">
+        {landed ? `You've been sorted into ${house.name}, the ${house.portfolioName} portfolio.` : ""}
+      </div>
 
-      {/* Soft colour bloom behind the card, tinted to the House once it lands. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute h-[34rem] w-[34rem] rounded-full blur-3xl transition-all duration-1000"
-        style={{
-          background: revealed ? theme.accent : "#1e3a5f",
-          opacity: revealed ? 0.3 : 0.16,
-          transform: revealed ? "scale(1)" : "scale(.7)",
-        }}
-      />
+      {/* Held square and at a fixed size so the frame reads as a square at every viewport, and
+          so the field doesn't reflow when the labels below it appear. */}
+      <div className="relative flex h-[min(84vw,50vh,28rem)] w-[min(84vw,50vh,28rem)] shrink-0 items-center justify-center">
+        <HouseNameParticles
+          name={landed ? house.name : null}
+          accent={theme.accent}
+          reduced={reduced}
+          className="absolute inset-0"
+        />
 
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center">
-        {revealed ? (
-          failed ? (
-            <FallbackCard onDone={onDone} ctaRef={ctaRef} />
-          ) : (
-            <RevealedCard house={house} theme={theme} onDone={onDone} ctaRef={ctaRef} />
-          )
+        {failed && revealed && <FallbackCard onDone={onDone} ctaRef={ctaRef} />}
+      </div>
+
+      {/* Both states occupy the same slot under the field, so nothing shifts on the swap. */}
+      <div className="relative z-10 mt-6 flex min-h-[9rem] w-full max-w-md flex-col items-center text-center">
+        {landed ? (
+          <>
+            <p
+              className="animate-fade-in text-[11px] font-semibold uppercase tracking-[0.2em]"
+              style={{ color: theme.accent, animationDelay: "500ms" }}
+            >
+              {house.portfolioName} portfolio
+            </p>
+            <p
+              className="mt-4 max-w-xs animate-fade-up text-sm leading-relaxed text-white/55"
+              style={{ animationDelay: "800ms" }}
+            >
+              Log a donation every week to build your streak. Your consistency is what moves{" "}
+              {house.name} up the leaderboard.
+            </p>
+            <div className="mt-7 animate-fade-up" style={{ animationDelay: "1000ms" }}>
+              <Button ref={ctaRef} onClick={onDone} variant="inverse" size="lg">
+                Enter your dashboard →
+              </Button>
+            </div>
+          </>
         ) : (
-          <SpinningCard name={reelName} tick={tick} />
+          !failed && (
+            <>
+              <div className="flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">
+                <Spinner className="h-3.5 w-3.5 text-white/60" />
+                Sorting you into a House
+              </div>
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/35">
+                Every member is placed on a team. You'll fundraise together and climb the
+                leaderboard together.
+              </p>
+              <button
+                type="button"
+                onClick={onDone}
+                className="mt-7 rounded-lg px-3 py-2 text-xs font-medium text-white/40 transition hover:text-white/80"
+              >
+                Skip
+              </button>
+            </>
+          )
         )}
-      </div>
-
-      {!revealed && (
-        <button
-          type="button"
-          onClick={onDone}
-          className="absolute bottom-8 z-10 text-xs font-medium text-white/45 transition hover:text-white/80"
-        >
-          Skip
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------- states */
-
-function SpinningCard({ name, tick }) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-[0.2em] text-white/50">
-        <Spinner className="h-4 w-4 text-white/60" />
-        Sorting you into a House
-      </div>
-
-      <div className="relative mt-8 flex h-32 w-full items-center justify-center overflow-hidden">
-        {/* key forces a remount each tick so the slide-through animation replays */}
-        <span
-          key={tick}
-          className="animate-reel-spin font-display text-4xl font-medium tracking-[-0.01em] text-white sm:text-5xl"
-        >
-          {name}
-        </span>
-        {/* Fades the reel out at the top and bottom edges. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, #0a1626 0%, transparent 32%, transparent 68%, #0a1626 100%)",
-          }}
-        />
-      </div>
-
-      <p className="mt-6 max-w-xs text-sm text-white/40">
-        Every member is placed on a team. You'll fundraise together and climb the leaderboard
-        together.
-      </p>
-    </div>
-  );
-}
-
-function RevealedCard({ house, theme, onDone, ctaRef }) {
-  return (
-    <div className="flex w-full flex-col items-center text-center">
-      <p
-        className="animate-fade-in text-sm font-medium uppercase tracking-[0.2em] text-white/50"
-        style={{ animationDelay: "120ms" }}
-      >
-        Welcome to
-      </p>
-
-      <div className="relative mt-5">
-        {/* Two offset pulses read as a single expanding ripple. */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 animate-ring-pulse"
-          style={{ background: theme.accent }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 animate-ring-pulse"
-          style={{ background: theme.accent, animationDelay: "1.2s" }}
-        />
-
-        {/* Squared card, flat House colour, no emoji. The reveal keeps its confetti and its
-            ripple - it's the one deliberate celebration in the app - but the card itself now
-            speaks the same language as the rest of the site. */}
-        <div className="relative animate-pop-in bg-white px-10 py-9">
-          <span
-            aria-hidden="true"
-            className="mx-auto block h-1.5 w-20 rounded-full"
-            style={{ background: theme.accent }}
-          />
-          <h1 className="mt-6 font-display text-3xl font-medium tracking-[-0.015em] text-ink-900 sm:text-4xl">
-            {house.name}
-          </h1>
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500">
-            {house.portfolioName} portfolio
-          </p>
-        </div>
-      </div>
-
-      <p
-        className="mt-7 max-w-xs animate-fade-up text-sm text-white/60"
-        style={{ animationDelay: "700ms" }}
-      >
-        Log a donation every week to build your streak. Your consistency is what moves{" "}
-        {house.name} up the leaderboard.
-      </p>
-
-      <div className="mt-7 animate-fade-up" style={{ animationDelay: "900ms" }}>
-        <Button ref={ctaRef} onClick={onDone} variant="inverse" size="lg">
-          Enter your dashboard →
-        </Button>
       </div>
     </div>
   );
@@ -249,7 +157,7 @@ function RevealedCard({ house, theme, onDone, ctaRef }) {
 // the user - it just drops the celebration and gets them to the dashboard.
 function FallbackCard({ onDone, ctaRef }) {
   return (
-    <div className="flex flex-col items-center text-center animate-scale-in">
+    <div className="relative z-10 flex animate-fade-in flex-col items-center px-4 text-center">
       <h1 className="font-display text-4xl font-medium tracking-[-0.015em] text-white">
         You're in!
       </h1>
@@ -261,49 +169,6 @@ function FallbackCard({ onDone, ctaRef }) {
           Go to your dashboard →
         </Button>
       </div>
-    </div>
-  );
-}
-
-/* ----------------------------------------------------------------- confetti */
-
-// Hand-rolled rather than pulling in a canvas library: it's ~70 absolutely positioned divs
-// driven entirely by CSS, which keeps the dependency count at zero and stays on the compositor.
-function Confetti({ theme }) {
-  const pieces = useMemo(() => {
-    const colors = [theme.from, theme.to, theme.accent, "#ffffff", "#fcd34d"];
-    return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 900,
-      duration: 2400 + Math.random() * 2200,
-      drift: `${(Math.random() - 0.5) * 40}vw`,
-      spin: `${540 + Math.random() * 900}deg`,
-      size: 6 + Math.random() * 7,
-      color: colors[i % colors.length],
-      round: Math.random() > 0.65,
-    }));
-  }, [theme]);
-
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-      {pieces.map((p) => (
-        <span
-          key={p.id}
-          className="absolute top-0 animate-confetti-fall"
-          style={{
-            left: `${p.left}%`,
-            width: p.size,
-            height: p.round ? p.size : p.size * 1.6,
-            background: p.color,
-            borderRadius: p.round ? "9999px" : "2px",
-            animationDelay: `${p.delay}ms`,
-            "--fall": `${p.duration}ms`,
-            "--drift": p.drift,
-            "--spin": p.spin,
-          }}
-        />
-      ))}
     </div>
   );
 }
