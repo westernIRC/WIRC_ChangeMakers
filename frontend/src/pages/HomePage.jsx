@@ -8,16 +8,16 @@ import { houseTheme, KNOWN_PORTFOLIOS } from "../utils/houseTheme";
 // reads as three unrelated features.
 const STEPS = [
   {
-    title: "Pick your cause",
-    body: "Sign up with the campaign you care about and the link people can donate through.",
+    title: "Tell us what you're raising for",
+    body: "Sign up with the cause you care about and the link people can use to donate.",
   },
   {
-    title: "Get sorted into a House",
-    body: "Everyone joins one of eight Houses the moment they sign up. You climb together.",
+    title: "Get randomly sorted into a House",
+    body: "The moment you sign up you're placed in one of eight Houses at random. No picking, no swapping — from then on you climb together.",
   },
   {
-    title: "Build your streak",
-    body: "Log a donation once a week, every week. Consistency counts more than any single total.",
+    title: "Keep it going",
+    body: "Log one donation a week, every week. A long streak beats one big week — that's the whole point.",
   },
 ];
 
@@ -56,19 +56,20 @@ export default function HomePage() {
           {/* ── headline column ── */}
           <div className="lg:col-span-7">
             <h1 className="animate-fade-up font-display text-[2.75rem] font-medium leading-[0.95] tracking-[-0.02em] text-ink-900 sm:text-7xl">
-              Give weekly.
+              Give a little.
               <br />
               {/* Italic serif on the turn, in the IRC blue. Does the job the clipped
                   rainbow gradient was doing, without the gradient. */}
-              <em className="font-normal italic text-brand-600">Rise together.</em>
+              <em className="font-normal italic text-brand-600">Every single week.</em>
             </h1>
 
             <p
               className="mt-7 max-w-xl animate-fade-up text-lg leading-relaxed text-ink-600"
               style={{ animationDelay: "90ms" }}
             >
-              Fundraise for your own cause, build a weekly giving streak, and compete as a House.
-              The leaderboard rewards showing up — not the size of your wallet.
+              Pick a cause, give what you can, and do it again next week. You'll be randomly
+              sorted into one of eight Houses, and the leaderboard counts who keeps showing up —
+              not who gives the most.
             </p>
 
             <div
@@ -142,7 +143,7 @@ export default function HomePage() {
               The eight Houses
             </h2>
             <p className="text-base text-ink-600">
-              You're assigned one when you sign up. You climb with them.
+              You get one at random when you sign up. Whichever it is, it's yours.
             </p>
           </div>
 
@@ -184,10 +185,10 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-7 bg-brand-700 px-8 py-11 sm:px-12">
             <div className="max-w-lg">
               <h2 className="font-display text-3xl font-medium leading-tight text-white sm:text-4xl">
-                Your House is waiting.
+                So which House will you get?
               </h2>
               <p className="mt-3 text-base leading-relaxed text-brand-100">
-                Sign up takes a minute. You'll find out which of the eight you're on right away.
+                Signing up takes about a minute, and you'll find out before you're done.
               </p>
             </div>
             <Button to="/signup" variant="inverse" size="lg">
