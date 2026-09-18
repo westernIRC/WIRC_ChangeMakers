@@ -28,12 +28,11 @@
     "nodemon": "^3.1.4",
     "prisma": "^5.20.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "bcrypt",
-      "prisma"
-    ]
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "bcrypt@5.1.1": true,
+    "fsevents@2.3.3": true,
+    "prisma@5.22.0": true
   }
 }
