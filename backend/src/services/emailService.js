@@ -1,53 +1,27 @@
-const nodemailer = require("nodemailer");
-
-// Provider-agnostic on purpose: any SMTP service works (Resend, SendGrid, Mailgun, Postmark,
-// Gmail with an app password, or a self-hosted server) by setting SMTP_* in the environment.
-//
-// When SMTP_HOST is not configured the transport falls back to logging the message to stdout.
-// That keeps local development and CI working with no credentials and no network calls - but
-// it means a misconfigured production deploy would silently print reset links to its logs
-// instead of emailing them, so `assertEmailConfigured()` is called at startup in production.
-const SMTP_HOST = process.env.SMTP_HOST;
+// Sends over Resend's HTTPS API rather than raw SMTP. Render (and many free PaaS hosts)
+// silently drop outbound connections on SMTP ports like 587 - a request just hangs until
+// nodemailer's connection timeout fires, so emails never arrive even though nothing ever
+// reports an error. HTTPS on 443 doesn't have that problem.
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.MAIL_FROM || "WIRC Changemakers <no-reply@wirc.local>";
 
-let transporter = null;
-
 function isConfigured() {
-  return Boolean(SMTP_HOST);
-}
-
-function getTransporter() {
-  if (!isConfigured()) return null;
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      // Port 465 is implicit TLS; 587 and 25 upgrade via STARTTLS.
-      secure: Number(process.env.SMTP_PORT || 587) === 465,
-      auth:
-        process.env.SMTP_USER && process.env.SMTP_PASS
-          ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-          : undefined,
-    });
-  }
-  return transporter;
+  return Boolean(RESEND_API_KEY);
 }
 
 // Fails fast at boot rather than at 2am when the first user forgets their password.
 function assertEmailConfigured() {
   if (process.env.NODE_ENV === "production" && !isConfigured()) {
     throw new Error(
-      "SMTP_HOST is not set. Password reset emails cannot be sent in production. " +
-        "Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_FROM, or unset NODE_ENV=production."
+      "RESEND_API_KEY is not set. Password reset emails cannot be sent in production. " +
+        "Set RESEND_API_KEY/MAIL_FROM, or unset NODE_ENV=production."
     );
   }
 }
 
 async function sendMail({ to, subject, text, html }) {
-  const transport = getTransporter();
-
-  if (!transport) {
-    console.log("\n--- EMAIL (SMTP not configured, logging instead) ---");
+  if (!isConfigured()) {
+    console.log("\n--- EMAIL (RESEND_API_KEY not configured, logging instead) ---");
     console.log(`To:      ${to}`);
     console.log(`Subject: ${subject}`);
     console.log(text);
@@ -55,7 +29,20 @@ async function sendMail({ to, subject, text, html }) {
     return { delivered: false, logged: true };
   }
 
-  await transport.sendMail({ from: FROM, to, subject, text, html });
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: FROM, to, subject, text, html }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Resend API error ${response.status}: ${body}`);
+  }
+
   return { delivered: true, logged: false };
 }
 
