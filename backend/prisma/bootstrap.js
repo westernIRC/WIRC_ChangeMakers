@@ -28,15 +28,15 @@ async function main() {
   });
   console.log("Settings ready.");
 
-  let created = 0;
-  for (const { name, portfolioName } of HOUSE_NAMES) {
-    const existing = await prisma.house.findFirst({ where: { name } });
-    if (!existing) {
-      await prisma.house.create({ data: { name, portfolioName } });
-      created += 1;
-    }
+  // Only seed Houses into an empty table. VPs can rename both name and portfolioName, so
+  // matching on either would re-create a renamed House as an empty duplicate on every deploy.
+  const existingCount = await prisma.house.count();
+  if (existingCount === 0) {
+    await prisma.house.createMany({ data: HOUSE_NAMES });
+    console.log(`Houses ready (${HOUSE_NAMES.length} created).`);
+  } else {
+    console.log(`Houses ready (${existingCount} already exist, left untouched).`);
   }
-  console.log(`Houses ready (${created} created, ${HOUSE_NAMES.length - created} already existed).`);
   console.log("Bootstrap complete. No user accounts were created.");
 }
 
