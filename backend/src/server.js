@@ -13,9 +13,10 @@ const { assertEmailConfigured, isConfigured } = require("./services/emailService
 
 const app = express();
 
-// Render/Vercel/Railway terminate TLS at a proxy. Without this Express sees the hop as plain
-// HTTP and refuses to set `secure` cookies, which silently breaks login in production.
-app.set("trust proxy", 1);
+// Requests arrive via two proxies: Vercel's /api rewrite, then Render's TLS terminator. Trusting
+// both hops gives Express the real client IP (so per-IP rate limits aren't shared by every user
+// behind Vercel's egress IPs) and the original HTTPS scheme (needed to set `secure` cookies).
+app.set("trust proxy", 2);
 
 app.use(
   cors({
