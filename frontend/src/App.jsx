@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import NavBar from "./components/NavBar.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -12,6 +12,7 @@ import HousePage from "./pages/HousePage.jsx";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
+import PrivacyPage from "./pages/PrivacyPage.jsx";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         {/* House rosters and member profiles name individual students, so they sit behind
             login even though the House leaderboard above is public. */}
         <Route
@@ -69,7 +71,10 @@ export default function App() {
             Western Islamic Relief Canada · Changemakers
           </p>
           <p className="text-xs text-ink-500">
-            Dollar amounts are always private. Only streaks are public.
+            Dollar amounts are always private. Only streaks are public. ·{" "}
+            <Link to="/privacy" className="underline underline-offset-2 hover:text-ink-700">
+              Privacy
+            </Link>
           </p>
         </div>
       </footer>

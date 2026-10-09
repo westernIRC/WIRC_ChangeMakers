@@ -1,34 +1,117 @@
-// Sends over Resend's HTTPS API rather than raw SMTP. Render (and many free PaaS hosts)
-// silently drop outbound connections on SMTP ports like 587 - a request just hangs until
-// nodemailer's connection timeout fires, so emails never arrive even though nothing ever
-// reports an error. HTTPS on 443 doesn't have that problem.
+// Two HTTPS providers, never raw SMTP: Render (and many free PaaS hosts) silently drop outbound
+// connections on SMTP ports like 587, so a request just hangs and emails vanish with no error.
+//
+// Gmail API (preferred): sends as a real Gmail account, so no domain is needed. Set
+// GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN (get the token with
+// `node scripts/gmail-auth.js`).
+// Resend (fallback): its shared onboarding@resend.dev sender only delivers to the Resend
+// account owner, so it needs a verified domain before it can email members.
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.MAIL_FROM || "WIRC Changemakers <no-reply@wirc.local>";
 
+function gmailConfigured() {
+  return Boolean(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
+}
+
 function isConfigured() {
-  return Boolean(RESEND_API_KEY);
+  return gmailConfigured() || Boolean(RESEND_API_KEY);
+}
+
+function providerName() {
+  if (gmailConfigured()) return "Gmail API";
+  if (RESEND_API_KEY) return "Resend";
+  return null;
 }
 
 // Fails fast at boot rather than at 2am when the first user forgets their password.
 function assertEmailConfigured() {
   if (process.env.NODE_ENV === "production" && !isConfigured()) {
     throw new Error(
-      "RESEND_API_KEY is not set. Password reset emails cannot be sent in production. " +
-        "Set RESEND_API_KEY/MAIL_FROM, or unset NODE_ENV=production."
+      "No email provider is configured. Password reset emails cannot be sent in production. " +
+        "Set GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN or RESEND_API_KEY, " +
+        "or unset NODE_ENV=production."
     );
   }
 }
 
-async function sendMail({ to, subject, text, html }) {
-  if (!isConfigured()) {
-    console.log("\n--- EMAIL (RESEND_API_KEY not configured, logging instead) ---");
-    console.log(`To:      ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(text);
-    console.log("--- END EMAIL ---\n");
-    return { delivered: false, logged: true };
-  }
+// Access tokens last an hour; reuse one until shortly before it expires.
+let gmailAccessToken = null;
+let gmailAccessTokenExpiresAt = 0;
 
+async function getGmailAccessToken() {
+  if (gmailAccessToken && Date.now() < gmailAccessTokenExpiresAt - 60 * 1000) {
+    return gmailAccessToken;
+  }
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GMAIL_CLIENT_ID,
+      client_secret: GMAIL_CLIENT_SECRET,
+      refresh_token: GMAIL_REFRESH_TOKEN,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Gmail token refresh error ${response.status}: ${body}`);
+  }
+  const data = await response.json();
+  gmailAccessToken = data.access_token;
+  gmailAccessTokenExpiresAt = Date.now() + data.expires_in * 1000;
+  return gmailAccessToken;
+}
+
+// RFC 2047 so names/subjects with non-ASCII characters (e.g. emoji) survive the header.
+function encodeHeader(value) {
+  return /^[\x20-\x7e]*$/.test(value)
+    ? value
+    : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
+function buildMimeMessage({ to, subject, text, html }) {
+  const boundary = `----=_changemakers_${Date.now().toString(36)}`;
+  const part = (type, body) =>
+    [
+      `--${boundary}`,
+      `Content-Type: ${type}; charset="UTF-8"`,
+      "Content-Transfer-Encoding: base64",
+      "",
+      Buffer.from(body, "utf8").toString("base64").replace(/.{76}/g, "$&\r\n"),
+    ].join("\r\n");
+
+  return [
+    `From: ${FROM}`,
+    `To: ${to}`,
+    `Subject: ${encodeHeader(subject)}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    part("text/plain", text),
+    part("text/html", html),
+    `--${boundary}--`,
+    "",
+  ].join("\r\n");
+}
+
+async function sendViaGmail(message) {
+  const accessToken = await getGmailAccessToken();
+  const raw = Buffer.from(buildMimeMessage(message), "utf8").toString("base64url");
+  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw }),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Gmail API error ${response.status}: ${body}`);
+  }
+}
+
+async function sendViaResend({ to, subject, text, html }) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -37,12 +120,27 @@ async function sendMail({ to, subject, text, html }) {
     },
     body: JSON.stringify({ from: FROM, to, subject, text, html }),
   });
-
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(`Resend API error ${response.status}: ${body}`);
   }
+}
 
+async function sendMail({ to, subject, text, html }) {
+  if (!isConfigured()) {
+    console.log("\n--- EMAIL (no email provider configured, logging instead) ---");
+    console.log(`To:      ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(text);
+    console.log("--- END EMAIL ---\n");
+    return { delivered: false, logged: true };
+  }
+
+  if (gmailConfigured()) {
+    await sendViaGmail({ to, subject, text, html });
+  } else {
+    await sendViaResend({ to, subject, text, html });
+  }
   return { delivered: true, logged: false };
 }
 
@@ -137,5 +235,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   isConfigured,
+  providerName,
   assertEmailConfigured,
 };

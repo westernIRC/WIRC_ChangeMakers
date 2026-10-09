@@ -9,7 +9,7 @@ const houseRoutes = require("./routes/houses");
 const entryRoutes = require("./routes/entries");
 const leaderboardRoutes = require("./routes/leaderboard");
 const adminRoutes = require("./routes/admin");
-const { assertEmailConfigured, isConfigured } = require("./services/emailService");
+const { assertEmailConfigured, isConfigured, providerName } = require("./services/emailService");
 
 const app = express();
 
@@ -70,7 +70,9 @@ assertEmailConfigured();
 const port = process.env.PORT || 4000;
 app.listen(port, () => {
   console.log(`Changemakers API listening on port ${port}`);
-  if (!isConfigured()) {
-    console.log("SMTP not configured - password reset emails will be logged to this console.");
+  if (isConfigured()) {
+    console.log(`Sending email via ${providerName()}.`);
+  } else {
+    console.log("No email provider configured - emails will be logged to this console.");
   }
 });
