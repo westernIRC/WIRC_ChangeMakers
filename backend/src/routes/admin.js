@@ -8,6 +8,7 @@ const { getCurrentStreak, getStreaksForUsers } = require("../services/streakServ
 const { adminUser } = require("../utils/serialize");
 const { getSettings, SETTINGS_DEFAULTS } = require("../services/settingsService");
 const { amountSchema } = require("../utils/money");
+const { getWeekStart } = require("../utils/weeks");
 const asyncHandler = require("../utils/asyncHandler");
 
 const router = express.Router();
@@ -141,11 +142,31 @@ router.put(
     }
     // Upsert rather than update: on a freshly migrated database the row may not exist yet,
     // and `update` would throw P2025 straight into the 500 handler.
-    const settings = await prisma.settings.upsert({
+    const upsert = prisma.settings.upsert({
       where: { id: 1 },
       update: parsed.data,
       create: { ...SETTINGS_DEFAULTS, ...parsed.data },
     });
+
+    // hitMinimum is stored per entry at submission time, so a new minimum would otherwise only
+    // apply to entries submitted after the change. Re-evaluate the current week so the change
+    // takes effect immediately; past weeks keep the minimum that applied when they closed.
+    const { weeklyMinimum } = parsed.data;
+    if (weeklyMinimum === undefined) {
+      return res.json({ settings: await upsert });
+    }
+    const weekStartDate = getWeekStart();
+    const [settings] = await prisma.$transaction([
+      upsert,
+      prisma.weeklyEntry.updateMany({
+        where: { weekStartDate, amount: { gte: weeklyMinimum } },
+        data: { hitMinimum: true },
+      }),
+      prisma.weeklyEntry.updateMany({
+        where: { weekStartDate, amount: { lt: weeklyMinimum } },
+        data: { hitMinimum: false },
+      }),
+    ]);
     res.json({ settings });
   })
 );
