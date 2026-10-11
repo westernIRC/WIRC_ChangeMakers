@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { houseTheme, houseTint } from "../utils/houseTheme";
 import {
   Alert,
-  Badge,
   Card,
   EmptyState,
   PageHeader,
@@ -278,11 +277,6 @@ function IndividualLeaderboard() {
                       >
                         {row.name}
                       </Link>
-                      {row.isCaptain && (
-                        <Badge tone="brand" className="ml-2">
-                          Captain
-                        </Badge>
-                      )}
                       {isMe && (
                         <span className="ml-2 rounded-sm bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-700">
                           You

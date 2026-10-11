@@ -1,5 +1,5 @@
 const prisma = require("../prismaClient");
-const { getPeriodStart } = require("../utils/weeks");
+const { getPeriodStart, getWeekStart } = require("../utils/weeks");
 const { getStreaksForUsers } = require("./streakService");
 const { getSettings } = require("./settingsService");
 
@@ -73,15 +73,30 @@ function compareHouses(a, b) {
   return a.name.localeCompare(b.name);
 }
 
-// Ranks every competitor (members and captains) by current streak, independent of how their House is doing overall.
-// Never includes dollar amounts (those stay private) - streak is the public consistency signal.
+// Ranks every competitor (members and captains) by current streak, independent of how their
+// House is doing overall. Never includes dollar amounts (those stay private) - streak is the
+// public consistency signal, so it alone decides rank.
+//
+// Equal streaks share a rank (1, 1, 1, 4, ...): nobody in a tie did better than anyone else.
+// Within a tie, whoever submitted earliest this week is listed first, then people who haven't
+// submitted yet. Display name and id settle the rest so the order is stable between requests.
 async function getIndividualLeaderboard() {
   const members = await prisma.user.findMany({
     where: { role: { in: COMPETING_ROLES } },
     include: { house: { select: { id: true, name: true } } },
   });
 
-  const streaks = await getStreaksForUsers(members.map((m) => m.id));
+  const ids = members.map((m) => m.id);
+  const [streaks, thisWeekEntries] = await Promise.all([
+    getStreaksForUsers(ids),
+    prisma.weeklyEntry.findMany({
+      where: { userId: { in: ids }, weekStartDate: getWeekStart() },
+      select: { userId: true, submittedAt: true },
+    }),
+  ]);
+  const submittedAtByUser = new Map(
+    thisWeekEntries.map((e) => [e.userId, e.submittedAt.getTime()])
+  );
 
   const rows = members.map((m) => ({
     userId: m.id,
@@ -93,8 +108,20 @@ async function getIndividualLeaderboard() {
     streak: streaks[m.id],
   }));
 
-  rows.sort((a, b) => b.streak - a.streak);
-  return rows.map((row, i) => ({ ...row, rank: i + 1 }));
+  const submittedAt = (row) => submittedAtByUser.get(row.userId) ?? Infinity;
+  rows.sort(
+    (a, b) =>
+      b.streak - a.streak ||
+      submittedAt(a) - submittedAt(b) ||
+      a.name.localeCompare(b.name) ||
+      a.userId.localeCompare(b.userId)
+  );
+
+  let rank = 0;
+  return rows.map((row, i) => {
+    if (i === 0 || row.streak !== rows[i - 1].streak) rank = i + 1;
+    return { ...row, rank };
+  });
 }
 
 // Builds the whole leaderboard from a fixed number of queries (settings, houses, users,
