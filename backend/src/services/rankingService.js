@@ -5,6 +5,12 @@ const { getSettings } = require("./settingsService");
 
 const VALID_PERIODS = ["week", "month", "rolling3mo", "all"];
 
+// Who competes: members plus each House's VP ("team captain"). Every House has exactly one VP,
+// so counting them is even across Houses. The overall admin belongs to no House and never
+// competes.
+const COMPETING_ROLES = ["member", "vp_admin"];
+const isCompeting = (user) => COMPETING_ROLES.includes(user.role);
+
 function normalizePeriod(period) {
   return VALID_PERIODS.includes(period) ? period : "all";
 }
@@ -67,11 +73,11 @@ function compareHouses(a, b) {
   return a.name.localeCompare(b.name);
 }
 
-// Ranks individual members by current streak, independent of how their House is doing overall.
+// Ranks every competitor (members and captains) by current streak, independent of how their House is doing overall.
 // Never includes dollar amounts (those stay private) - streak is the public consistency signal.
 async function getIndividualLeaderboard() {
   const members = await prisma.user.findMany({
-    where: { role: "member" },
+    where: { role: { in: COMPETING_ROLES } },
     include: { house: { select: { id: true, name: true } } },
   });
 
@@ -81,6 +87,7 @@ async function getIndividualLeaderboard() {
     userId: m.id,
     name: m.isAnonymous ? "Anonymous" : m.name,
     isAnonymous: m.isAnonymous,
+    isCaptain: !m.isAnonymous && m.role === "vp_admin",
     houseId: m.house?.id ?? null,
     houseName: m.house?.name ?? null,
     streak: streaks[m.id],
@@ -107,13 +114,13 @@ async function getLeaderboard(period) {
     select: { userId: true, amount: true, hitMinimum: true },
   });
 
-  const memberIds = users.filter((u) => u.role === "member").map((u) => u.id);
+  const memberIds = users.filter(isCompeting).map((u) => u.id);
   const streaks = await getStreaksForUsers(memberIds);
 
   const userById = new Map(users.map((u) => [u.id, u]));
 
   // House totals count every user's entries (admins included), matching getHouseTotal.
-  // Participation is members-only, so it is accumulated separately.
+  // Participation counts competitors only (members and captains), so it is accumulated separately.
   const totalByHouse = new Map();
   const hitMembersByHouse = new Map();
   for (const entry of periodEntries) {
@@ -122,7 +129,7 @@ async function getLeaderboard(period) {
 
     totalByHouse.set(user.houseId, (totalByHouse.get(user.houseId) ?? 0) + Number(entry.amount));
 
-    if (entry.hitMinimum && user.role === "member") {
+    if (entry.hitMinimum && isCompeting(user)) {
       if (!hitMembersByHouse.has(user.houseId)) hitMembersByHouse.set(user.houseId, new Set());
       hitMembersByHouse.get(user.houseId).add(entry.userId);
     }
@@ -130,7 +137,7 @@ async function getLeaderboard(period) {
 
   const membersByHouse = new Map();
   for (const user of users) {
-    if (user.role !== "member" || !user.houseId) continue;
+    if (!isCompeting(user) || !user.houseId) continue;
     if (!membersByHouse.has(user.houseId)) membersByHouse.set(user.houseId, []);
     membersByHouse.get(user.houseId).push(user.id);
   }
@@ -168,4 +175,5 @@ module.exports = {
   getIndividualLeaderboard,
   normalizePeriod,
   VALID_PERIODS,
+  COMPETING_ROLES,
 };

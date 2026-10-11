@@ -8,6 +8,8 @@ function publicUser(user, streak) {
       id: user.id,
       name: "Anonymous",
       isAnonymous: true,
+      // Each House has one captain, so flagging an anonymous captain would unmask them.
+      isCaptain: false,
       year: null,
       program: null,
       cause: null,
@@ -25,6 +27,7 @@ function publicUser(user, streak) {
     id: user.id,
     name: user.name,
     isAnonymous: false,
+    isCaptain: user.role === "vp_admin",
     year: user.year,
     program: user.program,
     cause: user.cause,

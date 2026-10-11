@@ -4,7 +4,7 @@ const { z } = require("zod");
 const prisma = require("../prismaClient");
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { requireRole, requireHouseScope } = require("../middleware/roleMiddleware");
-const { getLeaderboard, normalizePeriod, getHouseTotal } = require("../services/rankingService");
+const { getLeaderboard, normalizePeriod, getHouseTotal, COMPETING_ROLES } = require("../services/rankingService");
 const { getStreaksForUsers } = require("../services/streakService");
 const { publicUser } = require("../utils/serialize");
 const asyncHandler = require("../utils/asyncHandler");
@@ -22,7 +22,7 @@ router.get("/", asyncHandler(async (req, res) => {
 router.get("/:id", authMiddleware, asyncHandler(async (req, res) => {
   const house = await prisma.house.findUnique({
     where: { id: req.params.id },
-    include: { members: { where: { role: "member" } } },
+    include: { members: { where: { role: { in: COMPETING_ROLES } } } },
   });
   if (!house) return res.status(404).json({ error: "House not found" });
 

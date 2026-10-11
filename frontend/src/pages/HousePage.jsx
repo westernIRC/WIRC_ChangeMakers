@@ -13,6 +13,7 @@ import {
   SkeletonRows,
   Stat,
   StreakBadge,
+  Badge,
 } from "../components/ui.jsx";
 
 const PERIODS = [
@@ -168,12 +169,15 @@ export default function HousePage() {
                   {/* The initials disc is gone. Every member here is in the same House, so
                       tinting it by House said nothing, and white initials on the lighter
                       accents (amber, teal, emerald) sat under 3:1. */}
-                  <Link
-                    to={`/profile/${m.id}`}
-                    className="min-w-0 truncate font-medium text-ink-900 underline decoration-ink-300 decoration-1 underline-offset-[3px] transition hover:decoration-ink-900"
-                  >
-                    {m.name}
-                  </Link>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <Link
+                      to={`/profile/${m.id}`}
+                      className="min-w-0 truncate font-medium text-ink-900 underline decoration-ink-300 decoration-1 underline-offset-[3px] transition hover:decoration-ink-900"
+                    >
+                      {m.name}
+                    </Link>
+                    {m.isCaptain && <Badge tone="brand">Captain</Badge>}
+                  </span>
                   <StreakBadge weeks={m.streak} />
                 </li>
               ))}
